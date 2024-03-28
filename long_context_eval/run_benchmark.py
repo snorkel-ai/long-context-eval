@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Optional
 from jsonargparse import CLI
 
-from long_context_eval.evals.single_hop_qa import SingleHopQATest
+from evals.single_hop_qa import SingleHopQATest
 
 load_dotenv()
 
@@ -22,3 +22,5 @@ def main():
     lctest = SingleHopQATest(**args.__dict__)
     lctest.test_position_single_hop()
 
+if __name__ == '__main__':
+    main()

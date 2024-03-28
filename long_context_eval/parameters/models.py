@@ -1,5 +1,5 @@
 import os
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 
 
 TOKEN_LIMITS = {"gpt-3.5-turbo": 16385}
@@ -13,8 +13,8 @@ class OpenAIModel:
         api_key = os.getenv('OPENAI_API_KEY')
         self.model = ChatOpenAI(model=model_name,
                                 openai_api_key=api_key,
-                                **self.model_kwargs)
-        
+                                **model_kwargs)
+
         self.token_limit = TOKEN_LIMITS.get(model_name, None)
 
 

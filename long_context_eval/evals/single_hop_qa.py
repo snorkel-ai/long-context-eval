@@ -7,11 +7,11 @@ from langchain.schema import HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.output_parsers.json import SimpleJsonOutputParser
 from langchain_community.document_loaders import DirectoryLoader
-import long_context_eval.parameters.formats as formats
-import long_context_eval.parameters.prompts as prompts
-import long_context_eval.parameters.models as models
-from long_context_eval.utils.create_datastore import create_datastore
-from long_context_eval.utils.create_qa_pairs import create_qa_pairs_single_hop
+from parameters import formats as formats
+from parameters import prompts as prompts
+from parameters import models as models
+from utils.create_datastore import create_datastore
+from utils.create_qa_pairs import create_qa_pairs_single_hop
 
 
 class SingleHopQATest:
@@ -25,9 +25,10 @@ class SingleHopQATest:
         self.model_name = model_name
         self.data_path = data_path
         # Get the correct model based on model name
-        self.model = models.SUPPORTED_MODELS[self.model_name](model_kwargs)
+        self.model = models.SUPPORTED_MODELS[self.model_name](self.model_name, model_kwargs)
         self.encoding = tiktoken.encoding_for_model(self.model_name) ## TBD: Update to get encoding for any provider model
         self.depths = []
+        self.documents = []
 
     def _get_or_truncate_context_window(self, documents):
         '''fill up the context window, and truncate if necessary'''
@@ -52,10 +53,10 @@ class SingleHopQATest:
         for i in range(len(documents)):
             docs_copy = documents[:]
             
-            idx = qa_pairs[i]["id"]
-            q = qa_pairs[i]["question"]
-            a = qa_pairs[i]["answer"]
-            f = qa_pairs[i]["file"]
+            idx = qa_pairs[str(i)]["id"]
+            q = qa_pairs[str(i)]["question"]
+            a = qa_pairs[str(i)]["answer"]
+            f = qa_pairs[str(i)]["file"]
 
             docs_copy.pop(idx)
 
@@ -84,11 +85,11 @@ class SingleHopQATest:
             chain = prompt | self.model.model | formatter
             
             num_token = self.model.model.get_num_tokens_from_messages(messages=[
-            HumanMessage(content=prompt.SINGLEHOP_QA_PROMPT.format(context=context, question=q))
+            HumanMessage(content=prompts.SINGLEHOP_QA_PROMPT.format(context=context, question=q))
         ])
             if num_token > self.model.token_limit-100:
                 doc_content = self.encoding.decode(self.encoding.encode(
-                    prompt.SINGLEHOP_QA_PROMPT.format(context=context, question=q))[:self.model.token_limit-100])
+                    prompts.SINGLEHOP_QA_PROMPT.format(context=context, question=q))[:self.model.token_limit-100])
             else:
                 doc_content = context
 
@@ -123,13 +124,13 @@ class SingleHopQATest:
 
     def test_position_single_hop(self):
         # define prompt and format for test
-        prompt = prompt.SINGLEHOP_QA_PROMPT
+        prompt = prompts.SINGLEHOP_QA_PROMPT
         formatter = JsonOutputParser(pydantic_object=formats.SingleDocQA)
 
         # check if data folder exists
         if not os.path.exists(self.data_path):
             print("Creating (100) documents in ./data/ from HuggingFaceTB/cosmopedia-100k")
-            create_datastore()
+            create_datastore(self.data_path)
 
         # load files
         print("Loading documents...")
@@ -137,28 +138,34 @@ class SingleHopQATest:
         loader = DirectoryLoader(self.data_path, glob="**/*.*",
                                 show_progress=True,
                                 use_multithreading=True,)
-        documents = loader.load()
+        self.documents = loader.load()
+        print("# of documents: ", len(self.documents))
 
         # create QA pairs from documents
-        print("Creating QA pairs from documents...")
-        qa_pairs = create_qa_pairs_single_hop(documents)
+        try:
+            qa_pairs = json.load(open('data.json'))
+        except Exception as e:
+            print("Creating QA pairs from documents at ./data.json ...")
+            qa_pairs = create_qa_pairs_single_hop(self.documents)
 
         # fill up the context window, and truncate if necessary
-        documents = self.get_or_truncate_context_window(self.model, documents)
+        self.documents = self._get_or_truncate_context_window(self.documents)
 
         #### Test for position
         print(f"Run position test for {self.model_name}")
         # get number of docs at each depth for test
-        self.depths = {i: int(i*len(documents)/100) for i in range(10, 100, 10)}
+        self.depths = {i: int(i*len(self.documents)/100) for i in range(10, 100, 10)}
 
         # iterate at each depth for the test, generate responses to questions
         print(">>>>Generating answers")
         answers_at_depth = {}
-        for depth in list(self.depths.keys())[:1]:
-            answers = self._test_position_at_depth(depth, documents, qa_pairs,
+        for depth in list(self.depths.keys()):
+            answers = self._test_position_at_depth(depth, self.documents, qa_pairs,
                                          prompt, formatter)
             answers_at_depth[depth] = answers
+        # TBD: Should save answers_at_depth results
 
         # evaluate the responses
         print(">>>>Evaluating responses using llm-as-a-judge")
         score_output, scores = self._evaluate_responses(answers_at_depth)
+        # TBD: Should save score results

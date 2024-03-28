@@ -3,9 +3,9 @@ import json
 import tiktoken
 from langchain.schema import HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
-from long_context_eval.parameters.formats import SingleDocQuestionGen
-from long_context_eval.parameters.prompts import SINGLEHOP_QUESTION_PROMPT
-from long_context_eval.parameters.models import OpenAIModel
+from parameters.formats import SingleDocQuestionGen
+from parameters.prompts import SINGLEHOP_QUESTION_PROMPT
+from parameters.models import OpenAIModel
 
 
 def create_qa_pairs_single_hop(documents):
@@ -35,6 +35,8 @@ def create_qa_pairs_single_hop(documents):
                          "question": qa["question"], "answer": qa["answer"]}
 
     # Writes result to one single QA test file.
-    with open("./data.json", 'w') as f:
-        for key, value in qa_pairs.items():
-            f.write(json.dumps(value) + "\n")
+    # with open("./data.json", 'w') as f:
+    #     for key, value in qa_pairs.items():
+    #         f.write(json.dumps(value) + "\n")
+    with open("./data.json", 'w') as json_file:
+        json.dump(qa_pairs, json_file)
