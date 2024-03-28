@@ -9,7 +9,7 @@ from parameters.models import OpenAIModel
 
 def create_datastore(data_path):
     '''If ./data folder is empty, extract 100 docs from wikihow in cosmopedia dataset'''
-    num_docs = 20
+    num_docs = 100
     format = "wiki"
     ds = load_dataset("HuggingFaceTB/cosmopedia-100k", split="train")
     sample_dataset = ds.filter(lambda example: example["format"].startswith(format))
