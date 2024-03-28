@@ -1,0 +1,7 @@
+datasets
+tiktoken
+openai
+langchain
+langchain-community
+unstructured[pdf]
+langchain-openai
