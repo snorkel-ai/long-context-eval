@@ -8,3 +8,4 @@ langchain-community
 unstructured
 # unstructured[pdf]
 langchain-openai
+chromadb

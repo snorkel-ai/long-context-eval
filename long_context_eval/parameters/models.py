@@ -1,5 +1,5 @@
 import os
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 
 TOKEN_LIMITS = {"gpt-3.5-turbo": 16385}
@@ -28,4 +28,18 @@ class GeminiModel:
 
         self.token_limit = TOKEN_LIMITS.get(model_name, None)
 
-SUPPORTED_MODELS = {"gpt-3.5-turbo": OpenAIModel, "google": GeminiModel}
+
+class OpenAIEmbeddingsModel:
+    def __init__(self,
+                 model_name: str = "text-embedding-ada-002",
+                 model_kwargs: dict = {},
+                 ):
+        api_key = os.getenv('OPENAI_API_KEY')
+        self.model = OpenAIEmbeddings(model=model_name,
+                                openai_api_key=api_key,
+                                **model_kwargs)
+
+
+SUPPORTED_MODELS = {"gpt-3.5-turbo": OpenAIModel, 
+                    "google": GeminiModel,
+                    "text-embedding-ada-002": OpenAIEmbeddingsModel}

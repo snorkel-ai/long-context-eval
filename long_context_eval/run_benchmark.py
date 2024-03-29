@@ -11,8 +11,6 @@ load_dotenv()
 class Settings:
     model_name: Optional[str] = "gpt-3.5-turbo"
     data_path: Optional[str] = "./data"
-    
-    
 
 
 def main():
@@ -21,6 +19,7 @@ def main():
     # evaluate single hop doc QA
     lctest = SingleHopQATest(**args.__dict__)
     lctest.test_position_single_hop()
+    lctest.test_rag()
 
 if __name__ == '__main__':
     main()

@@ -4,9 +4,11 @@ from random import shuffle
 from typing import Optional
 import tiktoken
 from langchain.schema import HumanMessage
+from langchain_community.vectorstores import Chroma
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.output_parsers.json import SimpleJsonOutputParser
 from langchain_community.document_loaders import DirectoryLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from parameters import formats as formats
 from parameters import prompts as prompts
 from parameters import models as models
@@ -16,17 +18,32 @@ from utils.create_qa_pairs import create_qa_pairs_single_hop
 
 class SingleHopQATest:
     """
-    This class tests for long context.
+    This class tests for retrieval with long context and RAG in the single hop document QA setting.
     """
     def __init__(self,
                  model_name: Optional[str] = "gpt-3.5-turbo",
                  data_path: Optional[str] = "../data",
-                 model_kwargs: Optional[dict] = dict(temperature=0.8)):
+                 model_kwargs: Optional[dict] = dict(temperature=0.8),
+                 chunk_size: Optional[int] = 1000,
+                 chunk_overlap: Optional[int] = 200,
+                 k: Optional[int] = 10,
+                 embedding_model_name: Optional[str] = 'text-embedding-ada-002',
+                 embedding_model_kwargs: Optional[dict] = {}):
         self.model_name = model_name
         self.data_path = data_path
+        # RAG parameters
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+        self.k = k
+
         # Get the correct model based on model name
         self.model = models.SUPPORTED_MODELS[self.model_name](self.model_name, model_kwargs)
         self.encoding = tiktoken.encoding_for_model(self.model_name) ## TBD: Update to get encoding for any provider model
+        
+        # RAG embedding model
+        self.embedding_model_name = embedding_model_name
+        self.embedding_model = models.SUPPORTED_MODELS[self.embedding_model_name](self.embedding_model_name,
+                                                                                  embedding_model_kwargs)
         self.depths = []
         self.documents = []
 
@@ -121,6 +138,21 @@ class SingleHopQATest:
             score_output[depth] = scored_output_at_depth
             print(f"Accuracy at depth {depth}: {sum(scores)/len(scores)*100}%")
         return score_output, scores
+    
+    def _evaluate_rag_responses(self, rag_answers):
+        formatter = SimpleJsonOutputParser(pydantic_object=formats.ScoreQA)
+        prompt = prompts.SCORE_QA_PROMPT
+
+        scored_output = rag_answers.copy()
+        scores = []
+        for idx, item in rag_answers.items():
+            # score for correctness using llm-as-a-judge
+            chain = prompt | self.model.model | formatter
+            score_response = chain.invoke({"answer": item["answer"], "gold_answer": item["gold_answer"]})
+            scored_output[idx]["score"] = score_response["correct"]
+            scores.append(score_response["correct"])
+        print(f"RAG Accuracy: {sum(scores)/len(scores)*100}%")
+        return scored_output, scores
 
     def test_position_single_hop(self):
         # define prompt and format for test
@@ -133,13 +165,14 @@ class SingleHopQATest:
             create_datastore(self.data_path)
 
         # load files
-        print("Loading documents...")
-        files = os.listdir(self.data_path)
-        loader = DirectoryLoader(self.data_path, glob="**/*.*",
-                                show_progress=True,
-                                use_multithreading=True,)
-        self.documents = loader.load()
-        print("# of documents: ", len(self.documents))
+        if not self.documents:
+            print("Loading documents...")
+            files = os.listdir(self.data_path)
+            loader = DirectoryLoader(self.data_path, glob="**/*.*",
+                                    show_progress=True,
+                                    use_multithreading=True,)
+            self.documents = loader.load()
+            print("# of documents: ", len(self.documents))
 
         # create QA pairs from documents
         try:
@@ -169,3 +202,63 @@ class SingleHopQATest:
         print(">>>>Evaluating responses using llm-as-a-judge")
         score_output, scores = self._evaluate_responses(answers_at_depth)
         # TBD: Should save score results
+
+    def test_rag(self):
+        def format_docs(docs):
+            return "\n\n".join(doc.page_content for doc in docs)
+
+        # define prompt and format for test
+        prompt = prompts.SINGLEHOP_QA_PROMPT
+        formatter = JsonOutputParser(pydantic_object=formats.SingleDocQA)
+
+        # check if data folder exists
+        if not os.path.exists(self.data_path):
+            print("Creating (100) documents in ./data/ from HuggingFaceTB/cosmopedia-100k")
+            create_datastore(self.data_path)
+
+        # load files
+        if not self.documents:
+            print("Loading documents...")
+            files = os.listdir(self.data_path)
+            loader = DirectoryLoader(self.data_path, glob="**/*.*",
+                                    show_progress=True,
+                                    use_multithreading=True,)
+            self.documents = loader.load()
+            print("# of documents: ", len(self.documents))
+
+        # create QA pairs from documents
+        try:
+            qa_pairs = json.load(open('data.json'))
+        except Exception as e:
+            print("Creating QA pairs from documents at ./data.json ...")
+            qa_pairs = create_qa_pairs_single_hop(self.documents)
+
+        # chunk documents and add to vector store
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,
+                                                       chunk_overlap=self.chunk_overlap)
+        splits = text_splitter.split_documents(self.documents)
+        vectorstore = Chroma.from_documents(documents=splits, embedding=self.embedding_model.model)
+
+        retriever = vectorstore.as_retriever(search_kwargs={"k": self.k})
+
+        # for each QA pair, generate llm answer to the question
+        rag_answers = {}
+        for i in range(len(self.documents)):
+            idx = qa_pairs[str(i)]["id"]
+            q = qa_pairs[str(i)]["question"]
+            a = qa_pairs[str(i)]["answer"]
+            f = qa_pairs[str(i)]["file"]
+
+            rag_chain = chain = prompt | self.model.model | formatter
+            
+            qa = rag_chain.invoke({"context": retriever | format_docs, "question": q})
+            rag_answers[idx] = {"id": idx, "file": f, "question": q, "answer": qa["answer"], "gold_answer": a,
+                            }
+
+        # evaluate the responses
+        print(">>>>Evaluating RAG responses using llm-as-a-judge")
+        score_output, scores = self._evaluate_rag_responses(rag_answers)
+        # TBD: Should save score results
+
+        # cleanup
+        vectorstore.delete_collection()
