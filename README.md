@@ -35,10 +35,6 @@ If there is no data folder, the benchmark will first create 100 documents from `
 
 We follow LangChain's model naming conventions.
 
-```zsh
-python3 long_context_eval/run_benchmark.py --data_path ./data --model gpt-3.5-turbo
-```
-
 <pre style="background-color:black; color:white;">
 <code>
 (venv) $ python long_context_eval/run_benchmark.py --data_path ./data

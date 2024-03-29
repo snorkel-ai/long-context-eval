@@ -211,13 +211,14 @@ class SingleHopQATest:
         
         # save score results
         if not os.path.exists("./output"): os.makedirs("./output")
-        with open(os.path.join(f"./output/position_test_results_{self.model_name}.json"), 'w') as f:
+        save_path = f"./output/position_test_results_{self.model_name}.json"
+        with open(os.path.join(save_path), 'w') as f:
             f.write(json.dumps(score_output))
 
         test_end_time = time.time()
         test_elapsed_time = test_end_time - test_start_time
         print(f"Position Test Duration: {test_elapsed_time:.1f} seconds")
-        print("Results saved at ./output/long_context_position_test_results.json")
+        print(f"Results saved at {save_path}")
 
     def test_rag(self):
         def format_docs(docs):
@@ -290,13 +291,14 @@ class SingleHopQATest:
         
         # save score results
         if not os.path.exists("./output"): os.makedirs("./output")
-        with open(os.path.join(f"./output/rag_test_results_{self.model_name}.json"), 'w') as f:
+        save_path = f"./output/rag_test_results_{self.model_name}.json"
+        with open(os.path.join(save_path), 'w') as f:
             f.write(json.dumps(score_output))
 
         test_end_time = time.time()
         test_elapsed_time = test_end_time - test_start_time
         print(f"RAG Test Duration: {test_elapsed_time:.1f} seconds")
-        print("Results saved at ./output/long_context_rag_test_results.json")
+        print(f"Results saved at {save_path}")
 
         # cleanup
         vectorstore.delete_collection()
