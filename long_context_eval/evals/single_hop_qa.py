@@ -32,19 +32,21 @@ class SingleHopQATest:
                  embedding_model_kwargs: Optional[dict] = {}):
         self.model_name = model_name
         self.data_path = data_path
+        self.model_kwargs = model_kwargs
         # RAG parameters
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.search_kwargs = search_kwargs
+        self.embedding_model_kwargs = embedding_model_kwargs
 
         # Get the correct model based on model name
-        self.model = models.SUPPORTED_MODELS[self.model_name](self.model_name, model_kwargs)
+        self.model = models.SUPPORTED_MODELS[self.model_name](self.model_name, self.model_kwargs)
         self.encoding = tiktoken.encoding_for_model(self.model_name) ## TBD: Update to get encoding for any provider model
         
         # RAG embedding model
         self.embedding_model_name = embedding_model_name
         self.embedding_model = models.SUPPORTED_MODELS[self.embedding_model_name](self.embedding_model_name,
-                                                                                  embedding_model_kwargs)
+                                                                                  self.embedding_model_kwargs)
         self.depths = []
         self.documents = []
 
@@ -114,7 +116,8 @@ class SingleHopQATest:
             try:
                 qa = chain.invoke({"context": doc_content, "question": q})
                 answers[idx] = {"id": idx, "file": f, "question": q, "answer": qa["answer"], "gold_answer": a,
-                                "depth": depth, "context_length": num_token}
+                                "depth": depth, "context_length": num_token, "model": self.model_name,
+                                "model_kwargs": self.model_kwargs, }
             except:
                 print(f"Error processing document {idx}: {qa}")
                 continue
@@ -137,7 +140,7 @@ class SingleHopQATest:
                 scored_output_at_depth[idx]["score"] = int(score_response["correct"])
                 scores.append(score_response["correct"])
             score_output[depth] = scored_output_at_depth
-            print(f"Accuracy at depth {depth}: {sum(scores)/len(scores)*100}%")
+            print(f"Accuracy at depth {depth}: {sum(scores)/len(scores)*100:.1f}%")
         return score_output
     
     def _evaluate_rag_responses(self, rag_answers):
@@ -156,6 +159,7 @@ class SingleHopQATest:
         return scored_output
 
     def test_position_single_hop(self):
+        print("\n\n")
         test_start_time = time.time()
 
         # define prompt and format for test
@@ -188,12 +192,12 @@ class SingleHopQATest:
         self.documents = self._get_or_truncate_context_window(self.documents)
 
         #### Test for position
-        print(f"Run position test for {self.model_name}")
+        print(f"Run position test on long context for {self.model_name}")
         # get number of docs at each depth for test
         self.depths = {i: int(i*len(self.documents)/100) for i in range(10, 100, 10)}
 
         # iterate at each depth for the test, generate responses to questions
-        print(">>>>Generating answers")
+        print(">>>>Generate llm responses at document depths...")
         answers_at_depth = {}
         for depth in list(self.depths.keys()):
             answers = self._test_position_at_depth(depth, self.documents, qa_pairs,
@@ -207,18 +211,19 @@ class SingleHopQATest:
         
         # save score results
         if not os.path.exists("./output"): os.makedirs("./output")
-        with open(os.path.join("./output/long_context_position_test_results.json"), 'w') as f:
+        with open(os.path.join(f"./output/position_test_results_{self.model_name}.json"), 'w') as f:
             f.write(json.dumps(score_output))
 
         test_end_time = time.time()
         test_elapsed_time = test_end_time - test_start_time
-        print(f"RAG Test Duration: {test_elapsed_time:.1f} seconds")
+        print(f"Position Test Duration: {test_elapsed_time:.1f} seconds")
         print("Results saved at ./output/long_context_position_test_results.json")
 
     def test_rag(self):
         def format_docs(docs):
             return "\n\n".join(doc.page_content for doc in docs)
 
+        print("\n\n")
         test_start_time = time.time()
 
         # define prompt and format for test
@@ -274,7 +279,10 @@ class SingleHopQATest:
 
             qa = rag_chain.invoke({"context": retriever | format_docs, "question": q})
             rag_answers[idx] = {"id": idx, "file": f, "question": q, "answer": qa["answer"], "gold_answer": a,
-                            }
+                                "model": self.model_name, "model_kwargs": self.model_kwargs, 
+                                "embedding_model": self.embedding_model_name, "embedding_model_kwargs": self.embedding_model_kwargs,
+                                "chunk_size": self.chunk_size, "chunk_overlap": self.chunk_overlap,
+                                "search_kwargs": self.search_kwargs}
 
         # evaluate the responses
         print(">>>>Evaluating RAG responses using llm-as-a-judge")
@@ -282,7 +290,7 @@ class SingleHopQATest:
         
         # save score results
         if not os.path.exists("./output"): os.makedirs("./output")
-        with open(os.path.join("./output/long_context_rag_test_results.json"), 'w') as f:
+        with open(os.path.join(f"./output/rag_test_results_{self.model_name}.json"), 'w') as f:
             f.write(json.dumps(score_output))
 
         test_end_time = time.time()

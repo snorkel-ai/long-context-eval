@@ -39,6 +39,49 @@ We follow LangChain's model naming conventions.
 python3 long_context_eval/run_benchmark.py --data_path ./data --model gpt-3.5-turbo
 ```
 
+<pre style="background-color:black; color:white;">
+<code>
+(venv) $ python long_context_eval/run_benchmark.py --data_path ./data
+
+Loading documents...
+100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:02<00:00,  8.62it/s]
+# of documents:  20
+Truncated # of documents to 18
+Run position test on long context for gpt-3.5-turbo
+>>>>Generate llm responses at document depths...
+Depth: 10
+Depth: 20
+Depth: 30
+Depth: 40
+Depth: 50
+Depth: 60
+Depth: 70
+Depth: 80
+Depth: 90
+>>>>Evaluating responses using llm-as-a-judge
+Accuracy at depth 10: 77.77%
+Accuracy at depth 20: 72.22%
+Accuracy at depth 30: 66.66%
+Accuracy at depth 40: 72.22%
+Accuracy at depth 50: 77.77%
+Accuracy at depth 60: 77.77%
+Accuracy at depth 70: 61.11%
+Accuracy at depth 80: 77.77%
+Accuracy at depth 90: 55.55%
+Position Test Duration: 425.8 seconds
+Results saved at ./output/long_context_position_test_results.json
+
+Truncated # of documents to 18
+Run RAG test for gpt-3.5-turbo
+>>>>Chunk and add to vector store...
+>>>>Generate llm responses...
+>>>>Evaluating RAG responses using llm-as-a-judge
+RAG Accuracy: 22.22%
+RAG Test Duration: 22.5 seconds
+Results saved at ./output/long_context_rag_test_results.json
+</code>
+</pre>
+
 
 ### Test details
 
@@ -53,9 +96,14 @@ The process of testing long context is as follows:
 
 
 ### To-do
+- [X] Test for retrieval scoring at different document depths
+- [X] Basic test for RAG
 - [ ] Multiprocessing and async while running test
-- [ ] Get a suitable baseline RAG pipeline
 - [ ] Add Google models
-- [ ] Add decorator for logging time
-- [ ] Test for / handle edge cases
+- [ ] Get a suitable baseline RAG pipeline
 - [ ] Results and visualization (table/charts)
+- [ ] TQDM progress bars
+- [ ] Add decorator for logging time
+- [ ] Add intermediate depth results (so it doesn't rerun in case of any failure)
+- [ ] Test for / handle edge cases
+- [ ] Script to run for multiple models
