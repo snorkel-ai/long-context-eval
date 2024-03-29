@@ -60,7 +60,7 @@ class SingleHopQATest:
                         [doc.page_content for doc in truncated_docs]))) > self.model.token_limit:
                     break
             documents = truncated_docs[:]
-            print(f"Truncated # of documents to {len(documents)} for running position test")
+            print(f"Truncated # of documents to {len(documents)}")
         return documents
 
     def _test_position_at_depth(self, depth, documents, qa_pairs,
@@ -134,7 +134,7 @@ class SingleHopQATest:
                 # score for correctness using llm-as-a-judge
                 chain = prompt | self.model.model | formatter
                 score_response = chain.invoke({"answer": item["answer"], "gold_answer": item["gold_answer"]})
-                scored_output_at_depth[idx]["score"] = score_response["correct"]
+                scored_output_at_depth[idx]["score"] = int(score_response["correct"])
                 scores.append(score_response["correct"])
             score_output[depth] = scored_output_at_depth
             print(f"Accuracy at depth {depth}: {sum(scores)/len(scores)*100}%")
@@ -150,9 +150,9 @@ class SingleHopQATest:
             # score for correctness using llm-as-a-judge
             chain = prompt | self.model.model | formatter
             score_response = chain.invoke({"answer": item["answer"], "gold_answer": item["gold_answer"]})
-            scored_output[idx]["score"] = score_response["correct"]
+            scored_output[idx]["score"] = int(score_response["correct"])
             scores.append(score_response["correct"])
-        print(f"RAG Accuracy: {sum(scores)/len(scores)*100}%")
+        print(f"RAG Accuracy: {sum(scores)/len(scores)*100:.2f}%")
         return scored_output
 
     def test_position_single_hop(self):

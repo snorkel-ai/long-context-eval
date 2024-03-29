@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 from jsonargparse import CLI
 
@@ -11,12 +11,12 @@ load_dotenv()
 class Settings:
     model_name: Optional[str] = "gpt-3.5-turbo"
     data_path: Optional[str] = "./data"
-    model_kwargs: Optional[dict] = dict(temperature=0.8)
+    model_kwargs: Optional[dict] = field(default_factory=lambda: dict(temperature=0.8))
     chunk_size: Optional[int] = 1000
     chunk_overlap: Optional[int] = 200
-    search_kwargs: Optional[dict] = {"k": 10}
+    search_kwargs: Optional[dict] = field(default_factory=lambda: dict(k=10))
     embedding_model_name: Optional[str] = 'text-embedding-ada-002'
-    embedding_model_kwargs: Optional[dict] = {}
+    embedding_model_kwargs: Optional[dict] = field(default_factory=lambda: dict())
 
 
 def main():

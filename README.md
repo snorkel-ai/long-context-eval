@@ -8,6 +8,8 @@
     - [ ] Retrieval accuracy versus document depth
     - [ ] Retrieval accuracy: Long context versus RAG accuracy
     - [ ] Hallucination indicator: When the document is not present in context
+- Multi Document QA
+    - [ ] TBD
 
 
 ### Running the benchmark
@@ -41,6 +43,7 @@ python3 long_context_eval/run_benchmark.py --data_path ./data --model gpt-3.5-tu
 ### Test details
 
 The process of testing long context is as follows:
+
 0. If no documents are provided (i.e. `data_path` does not exist, default `./data/`), 100 articles from `HuggingFaceTB/cosmopedia-100k` dataset (format=wikihow) are saved as documents at `data_path`.
 1. QA pairs are first generated for each document at `data_path`. Currently only 1 QA pair is generated per document using GPT-3.5 Turbo. QA pairs are saved in `./data.json`.
 2. In order to test the model's context window capability, we fill the model's context window by selecting documents and related QA pairs (sequentially) until the token limit is reached.
@@ -52,6 +55,7 @@ The process of testing long context is as follows:
 ### To-do
 - [ ] Multiprocessing and async while running test
 - [ ] Get a suitable baseline RAG pipeline
-- [ ] Log time
+- [ ] Add Google models
+- [ ] Add decorator for logging time
 - [ ] Test for / handle edge cases
 - [ ] Results and visualization (table/charts)
