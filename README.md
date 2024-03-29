@@ -42,7 +42,7 @@ We follow LangChain's model naming conventions.
 Loading documents...
 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:02<00:00,  8.62it/s]
 # of documents:  20
-Truncated # of documents to 18
+Truncated # of documents to 18 (context window token limits reached)
 Run position test on long context for gpt-3.5-turbo
 >>>>Generate llm responses at document depths...
 Depth: 10
@@ -67,7 +67,7 @@ Accuracy at depth 90: 55.55%
 Position Test Duration: 425.8 seconds
 Results saved at ./output/position_test_results_gpt-3.5-turbo.json
 
-Truncated # of documents to 18
+Truncated # of documents to 18 (context window token limits reached)
 Run RAG test for gpt-3.5-turbo
 >>>>Chunk and add to vector store...
 >>>>Generate llm responses...

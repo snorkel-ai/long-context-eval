@@ -62,7 +62,7 @@ class SingleHopQATest:
                         [doc.page_content for doc in truncated_docs]))) > self.model.token_limit:
                     break
             documents = truncated_docs[:]
-            print(f"Truncated # of documents to {len(documents)}")
+            print(f"Truncated # of documents to {len(documents)} (context window token limits reached)")
         return documents
 
     def _test_position_at_depth(self, depth, documents, qa_pairs,
