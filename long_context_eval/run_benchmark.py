@@ -17,6 +17,13 @@ class Settings:
     search_kwargs: Optional[dict] = field(default_factory=lambda: dict(k=10))
     embedding_model_name: Optional[str] = 'text-embedding-ada-002'
     embedding_model_kwargs: Optional[dict] = field(default_factory=lambda: dict())
+    hfdataset: Optional[str] = "HuggingFaceTB/cosmopedia-100k"
+    hfdatasetsplit: Optional[str] = "train"
+    hfdatasetfilterdictkey: Optional[str] = "format"
+    hfdatasetfilterdictvalue: Optional[str] = "wiki"
+    hfdatasettextcol: Optional[str] = 'text'
+    hfdataset_num_docs: Optional[int] = 100
+
 
 
 def main():

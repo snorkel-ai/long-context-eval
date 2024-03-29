@@ -30,9 +30,14 @@ def create_qa_pairs_single_hop(documents):
                     context=doc.page_content))[:chat_model.token_limit])
         else:
             doc_content = doc.page_content
-        qa = chain.invoke({"context": doc_content})
-        qa_pairs[str(idx)] = {"id": idx, "file": doc.metadata["source"], 
-                         "question": qa["question"], "answer": qa["answer"]}
+
+        try:
+            qa = chain.invoke({"context": doc_content})
+            qa_pairs[str(idx)] = {"id": idx, "file": doc.metadata["source"], 
+                            "question": qa["question"], "answer": qa["answer"]}
+        except:
+                print(f"Error creating QA pair for document {idx}: {qa}")
+                continue
 
     # Writes result to one single QA test file.
     # with open("./data.json", 'w') as f:

@@ -29,7 +29,13 @@ class SingleHopQATest:
                  chunk_overlap: Optional[int] = 200,
                  search_kwargs: Optional[dict] = {"k": 10},
                  embedding_model_name: Optional[str] = 'text-embedding-ada-002',
-                 embedding_model_kwargs: Optional[dict] = {}):
+                 embedding_model_kwargs: Optional[dict] = {},
+                 hfdataset: Optional[str] = "HuggingFaceTB/cosmopedia-100k",
+                 hfdatasetsplit: Optional[str] = "train",
+                 hfdatasetfilterdictkey: Optional[str] = "format",
+                 hfdatasetfilterdictvalue: Optional[str] = "wiki",
+                 hfdatasettextcol: Optional[str] = "text",
+                 hfdataset_num_docs: Optional[int] = 100,):
         self.model_name = model_name
         self.data_path = data_path
         self.model_kwargs = model_kwargs
@@ -38,6 +44,13 @@ class SingleHopQATest:
         self.chunk_overlap = chunk_overlap
         self.search_kwargs = search_kwargs
         self.embedding_model_kwargs = embedding_model_kwargs
+        # Creating docs from HF dataset parameters
+        self.hfdataset = hfdataset
+        self.hfdatasetsplit = hfdatasetsplit
+        self.hfdatasetfilterdictkey = hfdatasetfilterdictkey
+        self.hfdatasetfilterdictvalue = hfdatasetfilterdictvalue
+        self.hfdatasettextcol = hfdatasettextcol
+        self.hfdataset_num_docs = hfdataset_num_docs
 
         # Get the correct model based on model name
         self.model = models.SUPPORTED_MODELS[self.model_name](self.model_name, self.model_kwargs)
@@ -119,7 +132,7 @@ class SingleHopQATest:
                                 "depth": depth, "context_length": num_token, "model": self.model_name,
                                 "model_kwargs": self.model_kwargs, }
             except:
-                print(f"Error processing document {idx}: {qa}")
+                print(f"Error generating LLM response for document {idx}: {qa}")
                 continue
         return answers
 
@@ -168,8 +181,12 @@ class SingleHopQATest:
 
         # check if data folder exists
         if not os.path.exists(self.data_path):
-            print("Creating (100) documents in ./data/ from HuggingFaceTB/cosmopedia-100k")
-            create_datastore(self.data_path)
+            create_datastore(self.data_path, self.hfdataset,
+                             self.hfdatasetsplit,
+                             self.hfdatasetfilterdictkey,
+                             self.hfdatasetfilterdictvalue,
+                             self.hfdatasettextcol,
+                             self.hfdataset_num_docs)
 
         # load files
         if not self.documents:
@@ -278,12 +295,16 @@ class SingleHopQATest:
 
             rag_chain = chain = prompt | self.model.model | formatter
 
-            qa = rag_chain.invoke({"context": retriever | format_docs, "question": q})
-            rag_answers[idx] = {"id": idx, "file": f, "question": q, "answer": qa["answer"], "gold_answer": a,
-                                "model": self.model_name, "model_kwargs": self.model_kwargs, 
-                                "embedding_model": self.embedding_model_name, "embedding_model_kwargs": self.embedding_model_kwargs,
-                                "chunk_size": self.chunk_size, "chunk_overlap": self.chunk_overlap,
-                                "search_kwargs": self.search_kwargs}
+            try:
+                qa = rag_chain.invoke({"context": retriever | format_docs, "question": q})
+                rag_answers[idx] = {"id": idx, "file": f, "question": q, "answer": qa["answer"], "gold_answer": a,
+                                    "model": self.model_name, "model_kwargs": self.model_kwargs, 
+                                    "embedding_model": self.embedding_model_name, "embedding_model_kwargs": self.embedding_model_kwargs,
+                                    "chunk_size": self.chunk_size, "chunk_overlap": self.chunk_overlap,
+                                    "search_kwargs": self.search_kwargs}
+            except:
+                print(f"Error generating RAG response for document {idx}: {qa}")
+                continue
 
         # evaluate the responses
         print(">>>>Evaluating RAG responses using llm-as-a-judge")
