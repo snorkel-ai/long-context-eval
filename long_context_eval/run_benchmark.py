@@ -18,8 +18,9 @@ def main():
 
     # evaluate single hop doc QA
     lctest = SingleHopQATest(**args.__dict__)
-    lctest.test_position_single_hop()
+    # lctest.test_position_single_hop()
     lctest.test_rag()
+
 
 if __name__ == '__main__':
     main()

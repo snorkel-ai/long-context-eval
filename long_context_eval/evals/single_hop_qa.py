@@ -26,7 +26,7 @@ class SingleHopQATest:
                  model_kwargs: Optional[dict] = dict(temperature=0.8),
                  chunk_size: Optional[int] = 1000,
                  chunk_overlap: Optional[int] = 200,
-                 k: Optional[int] = 10,
+                 search_kwargs: Optional[dict] = {"k": 10},
                  embedding_model_name: Optional[str] = 'text-embedding-ada-002',
                  embedding_model_kwargs: Optional[dict] = {}):
         self.model_name = model_name
@@ -34,7 +34,7 @@ class SingleHopQATest:
         # RAG parameters
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-        self.k = k
+        self.search_kwargs = search_kwargs
 
         # Get the correct model based on model name
         self.model = models.SUPPORTED_MODELS[self.model_name](self.model_name, model_kwargs)
@@ -137,7 +137,7 @@ class SingleHopQATest:
                 scores.append(score_response["correct"])
             score_output[depth] = scored_output_at_depth
             print(f"Accuracy at depth {depth}: {sum(scores)/len(scores)*100}%")
-        return score_output, scores
+        return score_output
     
     def _evaluate_rag_responses(self, rag_answers):
         formatter = SimpleJsonOutputParser(pydantic_object=formats.ScoreQA)
@@ -152,7 +152,7 @@ class SingleHopQATest:
             scored_output[idx]["score"] = score_response["correct"]
             scores.append(score_response["correct"])
         print(f"RAG Accuracy: {sum(scores)/len(scores)*100}%")
-        return scored_output, scores
+        return scored_output
 
     def test_position_single_hop(self):
         # define prompt and format for test
@@ -200,8 +200,12 @@ class SingleHopQATest:
 
         # evaluate the responses
         print(">>>>Evaluating responses using llm-as-a-judge")
-        score_output, scores = self._evaluate_responses(answers_at_depth)
-        # TBD: Should save score results
+        score_output = self._evaluate_responses(answers_at_depth)
+        
+        # save score results
+        if not os.path.exists("./output"): os.makedirs("./output")
+        with open(os.path.join("./output/long_context_position_test_results.json"), 'w') as f:
+            f.write(json.dumps(score_output))
 
     def test_rag(self):
         def format_docs(docs):
@@ -234,12 +238,13 @@ class SingleHopQATest:
             qa_pairs = create_qa_pairs_single_hop(self.documents)
 
         # chunk documents and add to vector store
+        print(f"Run RAG test for {self.model_name}")
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,
                                                        chunk_overlap=self.chunk_overlap)
         splits = text_splitter.split_documents(self.documents)
         vectorstore = Chroma.from_documents(documents=splits, embedding=self.embedding_model.model)
 
-        retriever = vectorstore.as_retriever(search_kwargs={"k": self.k})
+        retriever = vectorstore.as_retriever(search_kwargs=self.search_kwargs)
 
         # for each QA pair, generate llm answer to the question
         rag_answers = {}
@@ -250,15 +255,19 @@ class SingleHopQATest:
             f = qa_pairs[str(i)]["file"]
 
             rag_chain = chain = prompt | self.model.model | formatter
-            
+
             qa = rag_chain.invoke({"context": retriever | format_docs, "question": q})
             rag_answers[idx] = {"id": idx, "file": f, "question": q, "answer": qa["answer"], "gold_answer": a,
                             }
 
         # evaluate the responses
         print(">>>>Evaluating RAG responses using llm-as-a-judge")
-        score_output, scores = self._evaluate_rag_responses(rag_answers)
-        # TBD: Should save score results
+        score_output = self._evaluate_rag_responses(rag_answers)
+        
+        # save score results
+        if not os.path.exists("./output"): os.makedirs("./output")
+        with open(os.path.join("./output/long_context_rag_test_results.json"), 'w') as f:
+            f.write(json.dumps(score_output))
 
         # cleanup
         vectorstore.delete_collection()
