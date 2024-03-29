@@ -31,7 +31,7 @@ def create_qa_pairs_single_hop(documents):
         else:
             doc_content = doc.page_content
         qa = chain.invoke({"context": doc_content})
-        qa_pairs[idx] = {"id": idx, "file": doc.metadata["source"], 
+        qa_pairs[str(idx)] = {"id": idx, "file": doc.metadata["source"], 
                          "question": qa["question"], "answer": qa["answer"]}
 
     # Writes result to one single QA test file.
@@ -40,3 +40,5 @@ def create_qa_pairs_single_hop(documents):
     #         f.write(json.dumps(value) + "\n")
     with open("./data.json", 'w') as json_file:
         json.dump(qa_pairs, json_file)
+
+    return qa_pairs
