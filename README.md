@@ -65,7 +65,7 @@ Accuracy at depth 70: 61.11%
 Accuracy at depth 80: 77.77%
 Accuracy at depth 90: 55.55%
 Position Test Duration: 425.8 seconds
-Results saved at ./output/long_context_position_test_results.json
+Results saved at ./output/position_test_results_gpt-3.5-turbo.json
 
 Truncated # of documents to 18
 Run RAG test for gpt-3.5-turbo
@@ -74,7 +74,7 @@ Run RAG test for gpt-3.5-turbo
 >>>>Evaluating RAG responses using llm-as-a-judge
 RAG Accuracy: 22.22%
 RAG Test Duration: 22.5 seconds
-Results saved at ./output/long_context_rag_test_results.json
+Results saved at ./output/rag_test_results_gpt-3.5-turbo.json
 </code>
 </pre>
 
