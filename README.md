@@ -50,7 +50,8 @@ The process of testing long context is as follows:
 
 
 ### To-do
-- [ ] Multiprocessing while running test
+- [ ] Multiprocessing and async while running test
 - [ ] Get a suitable baseline RAG pipeline
 - [ ] Log time
+- [ ] Test for / handle edge cases
 - [ ] Results and visualization (table/charts)

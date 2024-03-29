@@ -1,4 +1,5 @@
 import os
+import time
 import json
 from random import shuffle
 from typing import Optional
@@ -59,7 +60,7 @@ class SingleHopQATest:
                         [doc.page_content for doc in truncated_docs]))) > self.model.token_limit:
                     break
             documents = truncated_docs[:]
-            print(f"Truncated documents to {len(documents)} for running position test")
+            print(f"Truncated # of documents to {len(documents)} for running position test")
         return documents
 
     def _test_position_at_depth(self, depth, documents, qa_pairs,
@@ -155,6 +156,8 @@ class SingleHopQATest:
         return scored_output
 
     def test_position_single_hop(self):
+        test_start_time = time.time()
+
         # define prompt and format for test
         prompt = prompts.SINGLEHOP_QA_PROMPT
         formatter = JsonOutputParser(pydantic_object=formats.SingleDocQA)
@@ -207,9 +210,16 @@ class SingleHopQATest:
         with open(os.path.join("./output/long_context_position_test_results.json"), 'w') as f:
             f.write(json.dumps(score_output))
 
+        test_end_time = time.time()
+        test_elapsed_time = test_end_time - test_start_time
+        print(f"RAG Test Duration: {test_elapsed_time:.1f} seconds")
+        print("Results saved at ./output/long_context_position_test_results.json")
+
     def test_rag(self):
         def format_docs(docs):
             return "\n\n".join(doc.page_content for doc in docs)
+
+        test_start_time = time.time()
 
         # define prompt and format for test
         prompt = prompts.SINGLEHOP_QA_PROMPT
@@ -237,8 +247,13 @@ class SingleHopQATest:
             print("Creating QA pairs from documents at ./data.json ...")
             qa_pairs = create_qa_pairs_single_hop(self.documents)
 
+        # since we want to compare RAG performance with long context
+        # fill up the context window, and truncate if necessary
+        self.documents = self._get_or_truncate_context_window(self.documents)
+
         # chunk documents and add to vector store
         print(f"Run RAG test for {self.model_name}")
+        print(">>>>Chunk and add to vector store...")
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,
                                                        chunk_overlap=self.chunk_overlap)
         splits = text_splitter.split_documents(self.documents)
@@ -247,6 +262,7 @@ class SingleHopQATest:
         retriever = vectorstore.as_retriever(search_kwargs=self.search_kwargs)
 
         # for each QA pair, generate llm answer to the question
+        print(">>>>Generate llm responses...")
         rag_answers = {}
         for i in range(len(self.documents)):
             idx = qa_pairs[str(i)]["id"]
@@ -268,6 +284,11 @@ class SingleHopQATest:
         if not os.path.exists("./output"): os.makedirs("./output")
         with open(os.path.join("./output/long_context_rag_test_results.json"), 'w') as f:
             f.write(json.dumps(score_output))
+
+        test_end_time = time.time()
+        test_elapsed_time = test_end_time - test_start_time
+        print(f"RAG Test Duration: {test_elapsed_time:.1f} seconds")
+        print("Results saved at ./output/long_context_rag_test_results.json")
 
         # cleanup
         vectorstore.delete_collection()
