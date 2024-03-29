@@ -31,6 +31,8 @@ To run on your own data, add documents to a `data` folder. (As a default, we use
 
 If there is no data folder, the benchmark will first create 100 documents from `HuggingFaceTB/cosmopedia-100k` dataset (format=wikihow). The dataset contains synthetically generated articles.
 
+We follow LangChain's model naming conventions.
+
 ```zsh
 python3 long_context_eval/run_benchmark.py --data_path ./data --model gpt-3.5-turbo
 ```
@@ -44,6 +46,7 @@ The process of testing long context is as follows:
 3. For each document depth, the document containing the answer is positioned at the desired depth in the context, and an LLM response is generated.
 4. Model responses are evaluated using LLM-as-a-judge.
 5. For the RAG test, Langchain's pipeline using Chroma DB (with default parameters) is used. 10 documents are retrieved and used as context.
+
 
 ### To-do
 - [ ] Multiprocessing while running test
