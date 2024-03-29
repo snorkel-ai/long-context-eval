@@ -6,8 +6,14 @@
 
 - Single Document QA
     - [ ] Retrieval accuracy versus document depth
-    - [ ] Long context versus RAG accuracy
+    - [ ] Retrieval accuracy: Long context versus RAG accuracy
+    - [ ] Hallucination indicator: When the document is not present in context
 
 ### Test details
 
 TBD
+
+### To-do
+- [ ] Multiprocessing while running test
+- [ ] Get a suitable baseline RAG pipeline
+- [ ] Results and visualization
