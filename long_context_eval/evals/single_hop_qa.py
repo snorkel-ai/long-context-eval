@@ -132,7 +132,7 @@ class SingleHopQATest:
                                 "depth": depth, "context_length": num_token, "model": self.model_name,
                                 "model_kwargs": self.model_kwargs, }
             except:
-                print(f"Error generating LLM response for document {idx}: {qa}")
+                print(f"Error generating LLM response for document {idx}")
                 continue
         return answers
 
@@ -303,7 +303,7 @@ class SingleHopQATest:
                                     "chunk_size": self.chunk_size, "chunk_overlap": self.chunk_overlap,
                                     "search_kwargs": self.search_kwargs}
             except:
-                print(f"Error generating RAG response for document {idx}: {qa}")
+                print(f"Error generating RAG response for document {idx}")
                 continue
 
         # evaluate the responses
