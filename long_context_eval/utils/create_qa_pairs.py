@@ -1,49 +1,46 @@
 import os
 import json
+from collections import defaultdict
 import tiktoken
 from langchain.schema import HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
 from parameters.formats import SingleDocQuestionGen
-from parameters.prompts import SINGLEHOP_QUESTION_PROMPT
 from parameters.models import OpenAIModel
 
 
-def create_qa_pairs_single_hop(documents):
+def create_qa_pairs_single_hop(documents, qa_pairs_path, prompt):
     '''Creating benchmark questions-answers from individual documents'''
 
     # Set up a parser + inject instructions into the prompt template.
     parser_question_gen = JsonOutputParser(pydantic_object=SingleDocQuestionGen)    
 
-    qa_pairs = {}
+    qa_pairs = defaultdict(dict)
     encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
     for idx, doc in enumerate(documents):
-        # print(f"Processing document {idx} of {len(documents)}")
+        print(f"Processing document {idx} of {len(documents)}")
+        print(idx, doc.metadata["source"])
         chat_model = OpenAIModel()
-        chain = SINGLEHOP_QUESTION_PROMPT | chat_model.model | parser_question_gen
+        chain = prompt | chat_model.model | parser_question_gen
         
         num_token = chat_model.model.get_num_tokens_from_messages(messages=[
-        HumanMessage(content=SINGLEHOP_QUESTION_PROMPT.format(context=doc.page_content))
+        HumanMessage(content=prompt.format(context=doc.page_content))
     ])
-        if num_token > chat_model.token_limit:
+        if num_token > chat_model.max_context_size:
             doc_content = encoding.decode(encoding.encode(
-                SINGLEHOP_QUESTION_PROMPT.format(
-                    context=doc.page_content))[:chat_model.token_limit])
+                prompt.format(
+                    context=doc.page_content))[:chat_model.max_context_size])
         else:
             doc_content = doc.page_content
 
         try:
             qa = chain.invoke({"context": doc_content})
-            qa_pairs[str(idx)] = {"id": idx, "file": doc.metadata["source"], 
-                            "question": qa["question"], "answer": qa["answer"]}
+            qa_pairs[doc.metadata["source"]] = {"question": qa["question"], "answer": qa["answer"]}
         except:
                 print(f"Error creating QA pair for document {idx}")
                 continue
 
     # Writes result to one single QA test file.
-    # with open("./data.json", 'w') as f:
-    #     for key, value in qa_pairs.items():
-    #         f.write(json.dumps(value) + "\n")
-    with open("./data.json", 'w') as json_file:
+    with open(qa_pairs_path, 'w') as json_file:
         json.dump(qa_pairs, json_file)
 
     return qa_pairs

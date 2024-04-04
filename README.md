@@ -94,12 +94,11 @@ The process of testing long context is as follows:
 ### To-do
 - [X] Test for retrieval scoring at different document depths
 - [X] Basic test for RAG
+- [ ] Add support for Claude, Google and OSS models
 - [ ] Multiprocessing and async while running test
-- [ ] Add Google models
-- [ ] Get a suitable baseline RAG pipeline
+- [ ] Update embedding model used for RAG pipeline
 - [ ] Results and visualization (table/charts)
-- [ ] TQDM progress bars
+- [ ] Script to run for multiple models
 - [ ] Add decorator for logging time
 - [ ] Add intermediate depth results (so it doesn't rerun in case of any failure)
 - [ ] Test for / handle edge cases
-- [ ] Script to run for multiple models
