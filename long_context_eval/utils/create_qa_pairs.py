@@ -1,7 +1,6 @@
 import os
 import json
 from collections import defaultdict
-import tiktoken
 from langchain.schema import HumanMessage
 from parameters import prompts_formats as prompts_formats
 from parameters.models import OpenAIModel
@@ -11,11 +10,13 @@ def create_qa_pairs_single_hop(documents, qa_pairs_path, prompt, format):
     '''Creating benchmark questions-answers from individual documents'''
 
     qa_pairs = defaultdict(dict)
-    encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+
+    chat_model = OpenAIModel("gpt-3.5-turbo")
+    encoding = chat_model.encoding
     for idx, doc in enumerate(documents):
         print(f"Processing document {idx} of {len(documents)}")
         print(idx, doc.metadata["source"])
-        chat_model = OpenAIModel()
+        
         chain = prompt | chat_model.model | format
         
         num_token = chat_model.model.get_num_tokens_from_messages(messages=[

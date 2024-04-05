@@ -1,5 +1,6 @@
 import os
 from typing import Optional
+import tiktoken
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 
@@ -30,6 +31,8 @@ class OpenAIModel(BaseModel):
                                 openai_api_key=api_key,
                                 **model_kwargs)
         self.max_context_size = MAX_CONTEXT_SIZE[model_name]
+        # To get the tokeniser corresponding to a specific model in the OpenAI API:
+        self.encoding = tiktoken.encoding_for_model(model_name)
 
 
 class OpenAIEmbeddingsModel(BaseModel):

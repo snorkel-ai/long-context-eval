@@ -5,7 +5,6 @@ from datetime import datetime
 import random
 from typing import Optional
 from tqdm import tqdm
-import tiktoken
 from langchain.schema import HumanMessage
 from langchain_community.vectorstores import Chroma
 from langchain_core.runnables import RunnablePassthrough
@@ -27,7 +26,7 @@ class SingleHopQATest:
                  model_name: Optional[str] = "gpt-3.5-turbo",
                  data_path: Optional[str] = "../data",
                  qa_pairs_path: Optional[str] = './data.json',
-                 model_kwargs: Optional[dict] = dict(temperature=0.8),
+                 model_kwargs: Optional[dict] = dict(temperature=0.0),
                  chunk_size: Optional[int] = 1000,
                  chunk_overlap: Optional[int] = 200,
                  search_kwargs: Optional[dict] = {"k": 4},
@@ -65,8 +64,8 @@ class SingleHopQATest:
 
         # Get the correct model based on model name
         self.model = models.SUPPORTED_MODELS[self.model_name](self.model_name, self.model_kwargs)
-        self.encoding = tiktoken.encoding_for_model(self.model_name) ## TBD: Update to get encoding for any provider model
-        
+        self.encoding = self.model.encoding
+
         # RAG embedding model
         self.embedding_model_name = embedding_model_name
         self.embedding_model = models.SUPPORTED_MODELS[self.embedding_model_name](self.embedding_model_name,
@@ -395,9 +394,8 @@ class SingleHopQATest:
 
         #### Test for position
         print(f"Run position test on long context for {self.model_name}")
-        # get number of docs at each depth for test
-        self.positions = [0, int(len(self.documents)*.25), int(len(self.documents)*.5),
-                          int(len(self.documents)*.75), len(self.documents)] #range(len(self.documents))
+        self.positions = range(len(self.documents)) #[0, int(len(self.documents)*.25), int(len(self.documents)*.5),
+                          #int(len(self.documents)*.75), len(self.documents)] #range(len(self.documents))
 
         # iterate at each position for the test, generate responses to questions
         print(">>>>Generate llm responses at document depths...")
