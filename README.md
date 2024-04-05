@@ -93,7 +93,7 @@ The process of testing long context is as follows:
 
 ### To-do
 - [X] Test for retrieval scoring at different document depths
-- [X] Basic test for RAG
+- [X] Test for RAG
 - [ ] Add support for Claude, Google and OSS models
 - [ ] Multiprocessing and async while running test
 - [ ] Update embedding model used for RAG pipeline

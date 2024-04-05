@@ -1,11 +1,17 @@
 import os
 import json
 from typing import Optional
+from jsonargparse import CLI
 from datasets import load_dataset
+from dataclasses import dataclass, field
+from langchain_openai import ChatOpenAI
+from langchain.prompts.prompt import PromptTemplate
+from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain.output_parsers.json import SimpleJsonOutputParser
-from parameters.formats import Title
-from parameters import prompts as prompts
-from parameters import models as models
+
+
+class Title(BaseModel):
+    title: str = Field(description="title to the article")
 
 
 def create_datastore(data_path,
@@ -23,11 +29,21 @@ def create_datastore(data_path,
     sample_dataset = ds.filter(lambda example: example[hfdatasetfilterdictkey].startswith(hfdatasetfilterdictvalue))
     sample_dataset = sample_dataset.shuffle().select(range(hfdataset_num_docs))
 
-    chat_model = models.SUPPORTED_MODELS[data_generation_model_name](data_generation_model_name,
-                                                                     data_generation_model_kwargs)
+    # Define the model, prompt and format for chain
+    api_key = os.getenv('OPENAI_API_KEY')
+    model = ChatOpenAI(model=data_generation_model_name,
+                            openai_api_key=api_key,
+                            **data_generation_model_kwargs)
+
+    title_prompt_str = """Return a JSON object with a `title` for the following text. Do not use any special characters in the title.
+    Text: {text}
+    JSON: """
+    title_prompt = PromptTemplate(template=title_prompt_str, input_variables=["text"])
+
     parser_title = SimpleJsonOutputParser(pydantic_object=Title)
 
-    chain = prompts.get_prompt("title", list("text")) | chat_model.model | parser_title
+    # generate a title for the document using the LLM
+    chain = title_prompt | model | parser_title
     sample_dataset = sample_dataset.map(lambda example: {"file_title": 
                                                          chain.invoke(
                                                              {"text": example[hfdatasettextcol]})["title"]})
@@ -42,3 +58,20 @@ def create_datastore(data_path,
         doc_content = value[hfdatasettextcol]
         with open(os.path.join(data_path, title), 'w') as f:
             f.write(json.dumps(doc_content))
+
+@dataclass
+class Settings:
+    data_path: Optional[str] = "./data"
+    hfdataset: Optional[str] = "HuggingFaceTB/cosmopedia-100k"
+    hfdatasetsplit: Optional[str] = "train"
+    hfdatasetfilterdictkey: Optional[str] = "format"
+    hfdatasetfilterdictvalue: Optional[str] = "wiki"
+    hfdatasettextcol: Optional[str] = 'text'
+    hfdataset_num_docs: Optional[int] = 100
+    data_generation_model_name: Optional[str] = "gpt-3.5-turbo"
+    data_generation_model_kwargs: Optional[dict] = field(default_factory=lambda: dict(temperature=0.8))
+
+
+if __name__ == '__main__':
+    args = CLI(Settings, as_positional=False)
+    create_datastore(**args.__dict__)

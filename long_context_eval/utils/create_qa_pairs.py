@@ -3,16 +3,12 @@ import json
 from collections import defaultdict
 import tiktoken
 from langchain.schema import HumanMessage
-from langchain_core.output_parsers import JsonOutputParser
-from parameters.formats import SingleDocQuestionGen
+from parameters import prompts_formats as prompts_formats
 from parameters.models import OpenAIModel
 
 
-def create_qa_pairs_single_hop(documents, qa_pairs_path, prompt):
+def create_qa_pairs_single_hop(documents, qa_pairs_path, prompt, format):
     '''Creating benchmark questions-answers from individual documents'''
-
-    # Set up a parser + inject instructions into the prompt template.
-    parser_question_gen = JsonOutputParser(pydantic_object=SingleDocQuestionGen)    
 
     qa_pairs = defaultdict(dict)
     encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
@@ -20,7 +16,7 @@ def create_qa_pairs_single_hop(documents, qa_pairs_path, prompt):
         print(f"Processing document {idx} of {len(documents)}")
         print(idx, doc.metadata["source"])
         chat_model = OpenAIModel()
-        chain = prompt | chat_model.model | parser_question_gen
+        chain = prompt | chat_model.model | format
         
         num_token = chat_model.model.get_num_tokens_from_messages(messages=[
         HumanMessage(content=prompt.format(context=doc.page_content))
