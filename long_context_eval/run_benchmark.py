@@ -29,7 +29,6 @@ class Settings:
     task_prompt: Optional[str] = "single_doc_qa_prompt"
     eval_prompt: Optional[str] = "score_qa_prompt"
     seed: Optional[int] = None
-    num_docs: Optional[int] = None
 
 
 def main():
@@ -42,9 +41,6 @@ def main():
     lctest.test_long_context_length_versus_rag()
     logging.basicConfig(filename=args.log_path,level=logging.DEBUG)
     logging.info(lctest)
-
-    
-    
 
     # lctest.test_rag()
 

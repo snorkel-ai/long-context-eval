@@ -2,6 +2,7 @@ import os
 import time
 import json
 from datetime import datetime
+from collections import defaultdict
 import random
 from typing import Optional
 from tqdm import tqdm
@@ -26,7 +27,7 @@ class SingleHopQATest:
                  model_name: Optional[str] = "gpt-3.5-turbo",
                  data_path: Optional[str] = "../data",
                  qa_pairs_path: Optional[str] = './data.json',
-                 model_kwargs: Optional[dict] = dict(temperature=0.0),
+                 model_kwargs: Optional[dict] = dict(temperature=0.7),
                  chunk_size: Optional[int] = 1000,
                  chunk_overlap: Optional[int] = 200,
                  search_kwargs: Optional[dict] = {"k": 4},
@@ -40,7 +41,6 @@ class SingleHopQATest:
                  task_prompt: Optional[str] = "single_doc_qa_prompt",
                  eval_prompt: Optional[str] = "score_qa_prompt",
                  seed: Optional[int] = None,
-                 num_docs: Optional[int] = None,
                  ):
         self.model_name = model_name
         self.data_path = data_path
@@ -58,9 +58,8 @@ class SingleHopQATest:
         self.data_gen_prompt, self.data_gen_format = prompts_formats.get_prompt_and_format(data_gen_prompt)
         self.task_prompt, self.task_format = prompts_formats.get_prompt_and_format(task_prompt)
         self.eval_prompt, self.eval_format = prompts_formats.get_prompt_and_format(eval_prompt)
-        self.num_docs = num_docs
         
-        random.seed(seed)
+        self.rng = random.Random(seed)
 
         # Get the correct model based on model name
         self.model = models.SUPPORTED_MODELS[self.model_name](self.model_name, self.model_kwargs)
@@ -74,7 +73,11 @@ class SingleHopQATest:
         # Eval model
         self.eval_model = models.SUPPORTED_MODELS[self.eval_model_name](self.eval_model_name, self.eval_model_kwargs)
 
-        self.documents = []
+        self.loaded_documents = []
+        self.documents = {}
+        self.qa_pairs = {}
+
+        self.load_docs_and_qa_pairs()
 
     def __str__(self):
         vars = []
@@ -86,6 +89,43 @@ class SingleHopQATest:
             except:
                 continue
         return str(vars)
+
+    def load_docs_and_qa_pairs(self,):
+                # check if data folder exists
+        if not os.path.exists(self.data_path) or not os.listdir(self.data_path):
+            print("No documents for running experiments.")
+            exit(0)
+
+        # load files
+        if not self.documents:
+            print(f"Loading documents. at {self.data_path}..")
+            files = os.listdir(self.data_path)
+            loader = DirectoryLoader(self.data_path, glob="**/*.*",
+                                    show_progress=True,)
+                                    # use_multithreading=True,)
+            self.loaded_documents = loader.load()
+            print("# of documents: ", len(self.loaded_documents))
+
+        # create QA pairs from documents
+        try:
+            self.qa_pairs = json.load(open(self.qa_pairs_path))
+        except Exception as e:
+            print(f"Creating QA pairs from documents at {self.data_path} ...")
+            self.qa_pairs = create_qa_pairs_single_hop(self.loaded_documents,
+                                                  self.qa_pairs_path,
+                                                  self.data_gen_prompt,
+                                                  self.data_gen_format,
+                                                )
+
+        self.documents = self._get_or_truncate_context_window(self.loaded_documents)
+        temp_docs = {}
+        for doc in self.documents:
+            _, filename = os.path.split(doc.metadata["source"])
+            temp_docs[filename] = doc
+        self.documents = temp_docs.copy()
+
+        # filtering out QA pairs that are not part of the truncated document set
+        self.qa_pairs = {k: v for k, v in self.qa_pairs.items() if v["answer_doc"] in self.documents}
 
     def _get_or_truncate_context_window(self, documents):
         '''fill up the context window, and truncate if necessary'''
@@ -109,29 +149,29 @@ class SingleHopQATest:
             return documents
         return truncated_docs
 
-    def _create_doc_set_for_long_ctxt_rag(self, documents, doc_idx, num_noisy_docs):
-        docs_copy = documents[:]
+    def _create_doc_set_for_long_ctxt_rag(self, qa_pair, num_noisy_docs):
+        f = qa_pair.get("answer_doc", "")
 
-        docs_copy.pop(doc_idx)
-
-        test_doc = documents[doc_idx]
-
-        doc_set = [test_doc]
-
+        # get test document
+        doc_set = [self.documents[f]]
+        
         if num_noisy_docs > 0:
-            random.shuffle(docs_copy)
+            # get distractor docs
+            docs_copy = [doc for k, doc in self.documents.items() if k != f]
+            self.rng.shuffle(docs_copy)
             noisy_docs = docs_copy[:num_noisy_docs]
             doc_set.extend(noisy_docs)
 
-        random.shuffle(doc_set)
+        self.rng.shuffle(doc_set)
         return doc_set
 
-    def _get_responses_long_ctxt(self, doc_set, qa_pairs, doc_idx,
-                        test_doc_file_name, prompt, formatter):
-        q = qa_pairs[doc_idx]["question"]
+    def _get_responses_long_ctxt(self, doc_set, qa_pair, 
+                                 prompt, formatter):
+        q = qa_pair.get("question", "")
+        f = qa_pair.get("answer_doc", "")
         
-        context = "\n\n".join([doc.page_content for doc in doc_set])
         context_doc_names = [doc.metadata["source"] for doc in doc_set]
+        context = "\n\n".join([doc.page_content for doc in doc_set])
 
         # now that we have the context, generate an answer to the doc question
         chain = prompt | self.model.model | formatter
@@ -150,19 +190,19 @@ class SingleHopQATest:
         try:
             qa = chain.invoke({"context": doc_content, "question": q})
         except:
-            print(f"Error generating LLM response for document {doc_idx}")
+            print(f"Error generating LLM response for document {f}")
             qa = ""
 
-        answers_dict = qa_pairs[doc_idx].copy()
+        answers_dict = qa_pair.copy()
         answers_dict.update({"llm_response": qa, "context_length": num_token,
-                        "model": self.model_name, "model_kwargs": self.model_kwargs, 
-                        "context_list": context_doc_names,
-                        # "context": context,
-                        "answer_document": test_doc_file_name})
+                            "model": self.model_name, "model_kwargs": self.model_kwargs, 
+                            "context_list": context_doc_names,
+                            # "context": context,
+                            "answer_document": f})
         return answers_dict
 
-    def _get_responses_rag(self, doc_set, qa_pairs, doc_idx,
-                        test_doc_file_name, prompt, formatter):
+    def _get_responses_rag(self, doc_set, qa_pair,
+                           prompt, formatter):
         def format_docs(docs):
             return "\n\n".join(doc.page_content for doc in docs)
 
@@ -172,7 +212,8 @@ class SingleHopQATest:
         vectorstore = Chroma.from_documents(documents=splits, embedding=self.embedding_model.model)
         retriever = vectorstore.as_retriever(search_kwargs=self.search_kwargs)
 
-        q = qa_pairs[doc_idx]["question"]
+        q = qa_pair.get("question", "")
+        f = qa_pair.get("answer_doc", "")
 
         retrieved_docs = [doc.page_content for doc in retriever.get_relevant_documents(q)]
 
@@ -182,13 +223,13 @@ class SingleHopQATest:
         try:
             qa = chain.invoke(q)
         except:
-            print(f"Error generating LLM response for document {doc_idx}")
+            print(f"Error generating LLM response for document {f}")
             qa = ""
 
-        answers_dict = qa_pairs[doc_idx].copy()
+        answers_dict = qa_pair.copy()
         answers_dict.update({"llm_response": qa, 
                              "model": self.model_name, "model_kwargs": self.model_kwargs,
-                             "answer_document": test_doc_file_name, "embedding_model": self.embedding_model_name,
+                             "answer_document": f, "embedding_model": self.embedding_model_name,
                              "embedding_model_kwargs": self.embedding_model_kwargs,
                              "chunk_size": self.chunk_size, "chunk_overlap": self.chunk_overlap,
                              "search_kwargs": self.search_kwargs,
@@ -198,49 +239,42 @@ class SingleHopQATest:
 
         return answers_dict
 
-    def _get_responses_at_position(self, position, documents, qa_pairs,
-                                prompt, formatter):
-        print(f"Position: {position}")
-        # for each doc, generate llm answer to the question
-        answers = []
-        for i in tqdm(range(len(documents))):
+    def _get_responses_at_positions(self, qa_pair,
+                                    prompt, formatter,
+                                    answers_at_position,
+                                    positions):
+        
+        q = qa_pair.get("question", "")
+        f = qa_pair.get("answer_doc", "")
 
-            q = qa_pairs[i].get("question", "")
+        for position in tqdm(positions):            
+            # for each position, generate llm answer to the question
+            # get test document
+            test_doc = self.documents[f]
 
-            docs_copy = documents[:]
-
-            docs_copy.pop(i)
-
-            test_doc = documents[i]
+            # get distractor docs
+            docs_copy = [doc for k, doc in self.documents.items() if k != f]
+            self.rng.shuffle(docs_copy)
 
             if position == 0:
                 docs_partition_1 = [test_doc]
                 docs_partition_2 = docs_copy.copy()
-                random.shuffle(docs_partition_2)
                 start_tokens = 0
                 end_tokens = len(self.encoding.encode(
                     "\n\n".join([doc.page_content for doc in docs_partition_1])))
-                
-                context_doc_names = [doc.metadata["source"] for doc in docs_partition_1]
-                context_doc_names.extend([doc.metadata["source"] for doc in docs_partition_2])
-
-            elif position == len(documents)-1:
+            
+            elif position == len(self.documents)-1:
                 docs_partition_1 = docs_copy.copy()
                 docs_partition_2 = [test_doc]
-                random.shuffle(docs_partition_1)
                 start_tokens = len(self.encoding.encode(
                     "\n\n".join([doc.page_content for doc in docs_partition_1])))
                 end_tokens = start_tokens + len(self.encoding.encode(
                     "\n\n".join([doc.page_content for doc in docs_partition_2])))
-                
-                context_doc_names = [doc.metadata["source"] for doc in docs_partition_1]
-                context_doc_names.extend([doc.metadata["source"] for doc in docs_partition_2])
+            
             else:
                 # partition docs into 0:position-1 and position+1:doc_length
                 docs_partition_1 = docs_copy[:position]
                 docs_partition_2 = docs_copy[position:]
-                random.shuffle(docs_partition_1)
-                random.shuffle(docs_partition_2)
                 start_tokens = len(self.encoding.encode(
                     "\n\n".join([doc.page_content for doc in docs_partition_1])))
                 
@@ -248,8 +282,8 @@ class SingleHopQATest:
                 end_tokens = len(self.encoding.encode(
                     "\n\n".join([doc.page_content for doc in docs_partition_1])))
 
-                context_doc_names = [doc.metadata["source"] for doc in docs_partition_1]
-                context_doc_names.extend([doc.metadata["source"] for doc in docs_partition_2])
+            context_doc_names = [doc.metadata["source"] for doc in docs_partition_1]
+            context_doc_names.extend([doc.metadata["source"] for doc in docs_partition_2])
 
             context_partition_1 = "\n\n".join([doc.page_content for doc in docs_partition_1])
             context_partition_2 = "\n\n".join([doc.page_content for doc in docs_partition_2])
@@ -274,17 +308,17 @@ class SingleHopQATest:
             try:
                 qa = chain.invoke({"context": doc_content, "question": q})
             except:
-                print(f"Error generating LLM response for document {i}")
+                print(f"Error generating LLM response for document {f}")
                 continue
 
-            answers_dict = qa_pairs[i].copy()
+            answers_dict = qa_pair.copy()
             answers_dict.update({"llm_response": qa, "position": position, "context_length": num_token,
-                            "model": self.model_name, "model_kwargs": self.model_kwargs, 
-                            "start_tokens": start_tokens, "end_tokens": end_tokens,
-                            "context_list": context_doc_names,
-                            "answer_document": test_doc.metadata["source"]})
-            answers.append(answers_dict)
-        return answers
+                                    "model": self.model_name, "model_kwargs": self.model_kwargs, 
+                                    "start_tokens": start_tokens, "end_tokens": end_tokens,
+                                    "context_list": context_doc_names,
+                                    "answer_document": test_doc.metadata["source"]})
+            answers_at_position[position].append(answers_dict)
+        return answers_at_position
 
     def _evaluate_responses(self, answers_at_position):
         ## evaluation using llm-as-a-judge
@@ -362,49 +396,19 @@ class SingleHopQATest:
         print("\n\n")
         test_start_time = time.time()
 
-        # check if data folder exists
-        if not os.path.exists(self.data_path) or not os.listdir(self.data_path):
-            print("No documents for running experiments.")
-            exit(0)
-
-        # load files
-        if not self.documents:
-            print("Loading documents...")
-            files = os.listdir(self.data_path)
-            loader = DirectoryLoader(self.data_path, glob="**/*.*",
-                                    show_progress=True,)
-                                    # use_multithreading=True,)
-            self.documents = loader.load()
-            self.documents = self.documents[:self.num_docs]
-            print("# of documents: ", len(self.documents))
-
-        # create QA pairs from documents
-        try:
-            qa_pairs = json.load(open(self.qa_pairs_path))
-        except Exception as e:
-            print(f"Creating QA pairs from documents at {self.data_path} ...")
-            qa_pairs = create_qa_pairs_single_hop(self.documents, self.qa_pairs_path,
-                                                  self.data_gen_prompt, self.data_gen_format)
-
-        # to keep same order as documents loaded
-        qa_pairs = self._reorder_qa_pairs(qa_pairs)
-
-        # fill up the context window, and truncate if necessary
-        self.documents = self._get_or_truncate_context_window(self.documents)
-
         #### Test for position
-        print(f"Run position test on long context for {self.model_name}")
-        self.positions = range(len(self.documents)) #[0, int(len(self.documents)*.25), int(len(self.documents)*.5),
-                          #int(len(self.documents)*.75), len(self.documents)] #range(len(self.documents))
+        positions = [0, int(len(self.documents)*.25), int(len(self.documents)*.5),
+                          int(len(self.documents)*.75), len(self.documents)]
+        # positions = range(len(self.documents)+1)
+        print(f"Run position test on long context for {self.model_name} at positions: {positions}")
 
-        # iterate at each position for the test, generate responses to questions
-        print(">>>>Generate llm responses at document depths...")
-        answers_at_position = {}
-        for position in self.positions:
-            answers = self._get_responses_at_position(position, self.documents, qa_pairs,
-                                         self.task_prompt, self.task_format)
-            answers_at_position[position] = answers
-        # TBD: Should save answers_at_position results
+        answers_at_position = {i: [] for i in positions}
+        print(">>>>Generate llm responses at positions...")
+        for idx, qa_pair in self.qa_pairs.items():
+            print("QA Pair: ", idx)
+            answers_at_position = self._get_responses_at_positions(qa_pair,
+                                         self.task_prompt, self.task_format,
+                                         answers_at_position, positions)
 
         # evaluate the responses
         print(">>>>Evaluating responses using llm-as-a-judge")
@@ -436,52 +440,21 @@ class SingleHopQATest:
         print("\n\n")
         test_start_time = time.time()
 
-        # check if data folder exists
-        if not os.path.exists(self.data_path) or not os.listdir(self.data_path):
-            print("No documents for running experiments.")
-            exit(0)
-
-        # load files
-        if not self.documents:
-            print("Loading documents...")
-            files = os.listdir(self.data_path)
-            loader = DirectoryLoader(self.data_path, glob="**/*.*",
-                                    show_progress=True,)
-                                    # use_multithreading=True,)
-            self.documents = loader.load()
-            self.documents = self.documents[:self.num_docs]
-            print("# of documents: ", len(self.documents))
-
-        # create QA pairs from documents
-        try:
-            qa_pairs = json.load(open(self.qa_pairs_path))
-        except Exception as e:
-            print(f"Creating QA pairs from documents at {self.data_path} ...")
-            qa_pairs = create_qa_pairs_single_hop(self.documents, self.qa_pairs_path,
-                                                  self.data_gen_prompt)
-
-        # to keep same order as documents loaded
-        qa_pairs = self._reorder_qa_pairs(qa_pairs)
-
-        # fill up the context window, and truncate if necessary
-        self.documents = self._get_or_truncate_context_window(self.documents)
-
         print(">>>>Generate llm responses w/ long context and RAG at increasing noise levels...")
         answers_at_noise_level = {}
-        for num_noisy_docs in range(len(self.documents)):
+        for num_noisy_docs in [0, int(len(self.documents)*.25), int(len(self.documents)*.5),
+                               int(len(self.documents)*.75), len(self.documents)]: #range(len(self.documents)):
             answers_long_ctxt, answers_rag = [], []
             print("# of noisy documents: ", num_noisy_docs)
-            for doc_idx in tqdm(range(len(self.documents))):
-                doc_set = self._create_doc_set_for_long_ctxt_rag(self.documents, doc_idx, num_noisy_docs)
+            for _, qa_pair in tqdm(self.qa_pairs.items()):
+                doc_set = self._create_doc_set_for_long_ctxt_rag(qa_pair, num_noisy_docs)
 
-                answers_dict = self._get_responses_long_ctxt(doc_set, qa_pairs, doc_idx,
-                                                    self.documents[doc_idx].metadata["source"],
-                                                    self.task_prompt, self.task_format)
+                answers_dict = self._get_responses_long_ctxt(doc_set, qa_pair,
+                                                             self.task_prompt, self.task_format)
                 answers_long_ctxt.append(answers_dict)       
 
-                rag_answers_dict = self._get_responses_rag(doc_set, qa_pairs, doc_idx,
-                                                  self.documents[doc_idx].metadata["source"],
-                                                  self.task_prompt, self.task_format)
+                rag_answers_dict = self._get_responses_rag(doc_set, qa_pair,
+                                                           self.task_prompt, self.task_format)
 
                 answers_rag.append(rag_answers_dict)
             
@@ -494,7 +467,8 @@ class SingleHopQATest:
 
         # save score results
         if not os.path.exists("./output"): os.makedirs("./output")
-        save_path = f"./output/rag_test_results_{self.model_name}.json"
+        date_time = datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
+        save_path = f"./output/long_ctxt_rag_test_results_{self.model_name}_{self.experiment_tag}-{date_time}.json"
         with open(os.path.join(save_path), 'w') as f:
             f.write(json.dumps(score_output))
 

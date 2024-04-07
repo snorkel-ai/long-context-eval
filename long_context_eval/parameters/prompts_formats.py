@@ -23,7 +23,7 @@ class ScoreQA(BaseModel):
 
 ###### define the prompt templates
 PROMPT_TEMPLATES = {
-    "single_doc_question_gen_prompt": """Ask a factoid question given only the context provided. Answer the question given the context.
+    "single_doc_question_gen_prompt": """Ask a factoid question given only the context provided, that can be answered in a few words. Answer the question given the context.
     Format your result in a JSON object with keys 'question' and 'answer'.
     Context: {context}
     Result:""",

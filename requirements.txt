@@ -8,4 +8,6 @@ langchain-community
 unstructured
 # unstructured[pdf]
 langchain-openai
+langchain-anthropic
+langchain-google-vertexai
 chromadb

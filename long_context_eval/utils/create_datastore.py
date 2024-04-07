@@ -34,6 +34,10 @@ def create_datastore(data_path,
     model = ChatOpenAI(model=data_generation_model_name,
                             openai_api_key=api_key,
                             **data_generation_model_kwargs)
+    
+    #check how many samples we need
+    full_text = "\n \n".join(sample_dataset[hfdatasettextcol])
+    print("total # of tokens", model.get_num_tokens(full_text))
 
     title_prompt_str = """Return a JSON object with a `title` for the following text. Do not use any special characters in the title.
     Text: {text}
@@ -44,9 +48,18 @@ def create_datastore(data_path,
 
     # generate a title for the document using the LLM
     chain = title_prompt | model | parser_title
-    sample_dataset = sample_dataset.map(lambda example: {"file_title": 
-                                                         chain.invoke(
-                                                             {"text": example[hfdatasettextcol]})["title"]})
+
+    def get_title(example, chain, hfdatasettextcol):
+        try:
+            file_title = chain.invoke({"text": example[hfdatasettextcol]})["title"]
+        except:
+            file_title = example[hfdatasettextcol][:50]
+        return {"file_title": file_title}
+
+    # sample_dataset = sample_dataset.map(lambda example: {"file_title": 
+    #                                                      chain.invoke(
+    #                                                          {"text": example[hfdatasettextcol]})["title"]})
+    sample_dataset = sample_dataset.map(lambda example: get_title(example, chain=chain, hfdatasettextcol=hfdatasettextcol))
 
     #create folder qa_data under ./ using os library and check if it exists
     if not os.path.exists(data_path):
