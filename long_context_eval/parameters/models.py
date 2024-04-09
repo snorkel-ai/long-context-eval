@@ -10,8 +10,11 @@ MAX_CONTEXT_SIZE = {"gpt-3.5-turbo": 16385,
                     "gpt-3.5-turbo-16k": 16385, # Currently points to gpt-3.5-turbo-16k-0613.
                     "gpt-4": 8192,
                     "gpt-4-0125-preview": 128_000,
+                    "gpt-4-turbo-2024-04-09": 128_000,
                     "gemini-pro": 32_760,
+                    "gemini-1.5-pro-preview-0409": 500_000,
                     "claude-2.1": 150_000,  # Claude is truncated currently since we use GPT-4 tokenizer to count tokens
+                    "claude-3-opus-20240229": 150_000
                     }
 
 
@@ -84,7 +87,10 @@ SUPPORTED_MODELS = {"gpt-3.5-turbo": OpenAIModel, #16k context
                     "gpt-3.5-turbo-16k": OpenAIModel, # gpt-3.5-turbo-16k-0613, 16k context
                     "gpt-4": OpenAIModel, # 8k context
                     "gpt-4-0125-preview": OpenAIModel, #128k context
+                    "gpt-4-turbo-2024-04-09": OpenAIModel,
                     "gemini-pro": VertexAIModel,
+                    "gemini-1.5-pro-preview-0409": VertexAIModel,
                     "claude-2.1": AnthropicModel,
+                    "claude-3-opus-20240229": AnthropicModel,
                     "text-embedding-ada-002": OpenAIEmbeddingsModel
                     }
