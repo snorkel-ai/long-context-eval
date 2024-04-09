@@ -33,7 +33,7 @@ class SingleHopQATest:
                  search_kwargs: Optional[dict] = {"k": 4},
                  embedding_model_name: Optional[str] = 'text-embedding-ada-002',
                  embedding_model_kwargs: Optional[dict] = {},
-                 eval_model_name: Optional[str] = "gpt-3.5-turbo",
+                 eval_model_name: Optional[str] = "gpt-4",
                  eval_model_kwargs: Optional[dict] = dict(temperature=0),
                  experiment_tag: Optional[str] = "tag",
                  log_path: Optional[str] = "experiments.log",
@@ -82,7 +82,7 @@ class SingleHopQATest:
     def __str__(self):
         vars = []
         for k, v in self.__dict__.items():
-            if str(k) == "documents":
+            if str(k) == "documents" or "loaded_documents":
                 continue
             try:
                 vars.append("{} = {}".format(k, v))
@@ -126,18 +126,25 @@ class SingleHopQATest:
 
         # filtering out QA pairs that are not part of the truncated document set
         self.qa_pairs = {k: v for k, v in self.qa_pairs.items() if v["answer_doc"] in self.documents}
+        print("# of QA pairs to test: ", len(self.qa_pairs))
+
+        # with open(os.path.join(self.qa_pairs_path), 'w') as f:
+        #     f.write(json.dumps(self.qa_pairs))
 
     def _get_or_truncate_context_window(self, documents):
         '''fill up the context window, and truncate if necessary'''
         long_context = "\n\n".join([doc.page_content for doc in documents])
+        print("total # of tokens", len(self.encoding.encode(long_context)))
+
         truncated_docs = []
-        if len(self.encoding.encode(long_context)) > self.model.max_context_size-100:
+        proxy_output_tokens = 250
+        if len(self.encoding.encode(long_context)) > self.model.max_context_size-proxy_output_tokens:
             for i, doc in enumerate(documents):
                 temp_doc_list = truncated_docs.copy()
                 temp_doc_list.append(doc)
                 if len(self.encoding.encode(
                     "\n\n".join(
-                        [doc.page_content for doc in temp_doc_list]))) > self.model.max_context_size-100:
+                        [doc.page_content for doc in temp_doc_list]))) > self.model.max_context_size-proxy_output_tokens:
                     break
                 else:
                     truncated_docs.append(doc)
@@ -179,11 +186,11 @@ class SingleHopQATest:
         num_token = self.model.model.get_num_tokens_from_messages(messages=[
         HumanMessage(content=prompt.format(context=context, question=q))
     ])
-        assert num_token < self.model.max_context_size-100, f"{num_token} context size is greater than max context length {self.model.max_context_size-100}"
+        assert num_token < self.model.max_context_size, f"{num_token} context size is greater than max context length {self.model.max_context_size}"
         ## TODO: Remove this condition since we assert
-        if num_token > self.model.max_context_size-100:
+        if num_token > self.model.max_context_size:
             doc_content = self.encoding.decode(self.encoding.encode(
-                prompt.format(context=context, question=q))[:self.model.max_context_size-100])
+                prompt.format(context=context, question=q))[:self.model.max_context_size])
         else:
             doc_content = context
 
@@ -257,6 +264,7 @@ class SingleHopQATest:
             self.rng.shuffle(docs_copy)
 
             if position == 0:
+                # test document goes at the top
                 docs_partition_1 = [test_doc]
                 docs_partition_2 = docs_copy.copy()
                 start_tokens = 0
@@ -264,6 +272,7 @@ class SingleHopQATest:
                     "\n\n".join([doc.page_content for doc in docs_partition_1])))
             
             elif position == len(self.documents)-1:
+                # test document goes at the bottom
                 docs_partition_1 = docs_copy.copy()
                 docs_partition_2 = [test_doc]
                 start_tokens = len(self.encoding.encode(
@@ -272,7 +281,7 @@ class SingleHopQATest:
                     "\n\n".join([doc.page_content for doc in docs_partition_2])))
             
             else:
-                # partition docs into 0:position-1 and position+1:doc_length
+                # partition docs into 0:position and position:doc_length
                 docs_partition_1 = docs_copy[:position]
                 docs_partition_2 = docs_copy[position:]
                 start_tokens = len(self.encoding.encode(
@@ -294,22 +303,23 @@ class SingleHopQATest:
             # now that we have the context, generate an answer to the doc question
             chain = prompt | self.model.model | formatter
             
-            num_token = self.model.model.get_num_tokens_from_messages(messages=[
-            HumanMessage(content=prompt.format(context=context, question=q))
-        ])
-            assert num_token < self.model.max_context_size-100, f"{num_token} context size is greater than max context length {self.model.max_context_size-100}"
+            num_token = len(self.encoding.encode(
+                    prompt.format(context=context, question=q)))
+
+            assert num_token < self.model.max_context_size, f"{num_token} context size is greater than max context length {self.model.max_context_size}"
             ## TODO: Remove this condition since we assert
-            if num_token > self.model.max_context_size-100:
+            if num_token > self.model.max_context_size:
                 doc_content = self.encoding.decode(self.encoding.encode(
-                    prompt.format(context=context, question=q))[:self.model.max_context_size-100])
+                    prompt.format(context=context, question=q))[:self.model.max_context_size])
             else:
                 doc_content = context
 
             try:
                 qa = chain.invoke({"context": doc_content, "question": q})
-            except:
+            except Exception as e:
                 print(f"Error generating LLM response for document {f}")
-                continue
+                print(e)
+                qa = ""
 
             answers_dict = qa_pair.copy()
             answers_dict.update({"llm_response": qa, "position": position, "context_length": num_token,
@@ -336,25 +346,9 @@ class SingleHopQATest:
                 scored_output_at_position.append(response_dict)
                 scores.append(score_response["correct"])
             score_output[position] = scored_output_at_position
-            print(f"Accuracy at position {position}: {sum(scores)/len(scores)*100:.1f}%")
+            print(f"Acc at position {position}: {sum(scores)/len(scores)*100:.1f}%")
         return score_output
     
-    def _reorder_qa_pairs(self, qa_pairs):
-        reordered_qa_pairs = []
-        docs_to_remove = []
-        for idx, doc in enumerate(self.documents):
-            file_name = doc.metadata["source"]
-            if file_name not in qa_pairs:
-                docs_to_remove.append(idx)
-            reordered_qa_pairs.append(qa_pairs[file_name])
-        
-        # to remove documents for which we have no QA pairs.
-        if docs_to_remove:
-            print("These documents do not have a QA pair, will be removed from context")
-            for idx in docs_to_remove:
-                self.documents.pop(idx)
-        return reordered_qa_pairs
-
     def _evaluate_long_ctxt_rag_responses(self, answers):
         ## evaluation using llm-as-a-judge
 
@@ -375,7 +369,7 @@ class SingleHopQATest:
                 scored_output_long_ctxt.append(long_ctxt_response)
                 scores_long_ctxt.append(score_response["correct"])
             score_output[num_noisy_docs]["long_ctxt"] = scored_output_long_ctxt
-            print(f"Long context accuracy with {num_noisy_docs} noisy documents: {sum(scores_long_ctxt)/len(scores_long_ctxt)*100:.1f}%")
+            print(f"Long context acc with {num_noisy_docs} noisy documents: {sum(scores_long_ctxt)/len(scores_long_ctxt)*100:.1f}%")
 
             scored_output_rag = []
             scores_rag = []
@@ -388,7 +382,7 @@ class SingleHopQATest:
                 scored_output_rag.append(rag_response)
                 scores_rag.append(score_response["correct"])
             score_output[num_noisy_docs]["rag"] = scored_output_rag
-            print(f"RAG accuracy with {num_noisy_docs} noisy documents: {sum(scores_rag)/len(scores_rag)*100:.1f}%")
+            print(f"RAG acc with {num_noisy_docs} noisy documents: {sum(scores_rag)/len(scores_rag)*100:.1f}%")
 
         return score_output
 
@@ -415,9 +409,9 @@ class SingleHopQATest:
         score_output = self._evaluate_responses(answers_at_position)
 
         # save score results
-        if not os.path.exists("./output"): os.makedirs("./output")
+        if not os.path.exists("./outputs"): os.makedirs("./outputs")
         date_time = datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
-        save_path = f"./output/position_test_results_{self.model_name}_{self.experiment_tag}-{date_time}.json"
+        save_path = f"./outputs/position_test_results_{self.experiment_tag}-{self.model_name}-{date_time}.json"
         with open(os.path.join(save_path), 'w') as f:
             f.write(json.dumps(score_output))
 
@@ -466,9 +460,9 @@ class SingleHopQATest:
         score_output = self._evaluate_long_ctxt_rag_responses(answers_at_noise_level)
 
         # save score results
-        if not os.path.exists("./output"): os.makedirs("./output")
+        if not os.path.exists("./outputs"): os.makedirs("./outputs")
         date_time = datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
-        save_path = f"./output/long_ctxt_rag_test_results_{self.model_name}_{self.experiment_tag}-{date_time}.json"
+        save_path = f"./outputs/long_ctxt_rag_test_results_{self.experiment_tag}-{self.model_name}-{date_time}.json"
         with open(os.path.join(save_path), 'w') as f:
             f.write(json.dumps(score_output))
 

@@ -7,10 +7,12 @@ from langchain_anthropic import ChatAnthropic
 
 
 MAX_CONTEXT_SIZE = {"gpt-3.5-turbo": 16385,
-                    "gpt-3.5-turbo-16k": 16385,
+                    "gpt-3.5-turbo-16k": 16385, # Currently points to gpt-3.5-turbo-16k-0613.
                     "gpt-4": 8192,
-                    "gpt-4-0125-preview": 128000,
-                    "gemini-1.5-pro": 128000}
+                    "gpt-4-0125-preview": 128_000,
+                    "gemini-pro": 32_760,
+                    "claude-2.1": 150_000,  # Claude is truncated currently since we use GPT-4 tokenizer to count tokens
+                    }
 
 
 class BaseModel:
@@ -45,7 +47,7 @@ class VertexAIModel(BaseModel):
                               generationConfig=model_kwargs)
         self.max_context_size = MAX_CONTEXT_SIZE[model_name]
         # To get the tokeniser corresponding to a specific model
-        self.encoding = tiktoken.encoding_for_model(model_name)
+        self.encoding = tiktoken.encoding_for_model("gpt-4")
 
 
 class AnthropicModel(BaseModel):
@@ -63,7 +65,7 @@ class AnthropicModel(BaseModel):
                                     anthropic_api_key=anthropic_api_key)
         self.max_context_size = MAX_CONTEXT_SIZE[model_name]
         # To get the tokeniser corresponding to a specific model
-        self.encoding = tiktoken.encoding_for_model(model_name)
+        self.encoding = tiktoken.encoding_for_model("gpt-4")
 
 
 class OpenAIEmbeddingsModel(BaseModel):
@@ -82,6 +84,7 @@ SUPPORTED_MODELS = {"gpt-3.5-turbo": OpenAIModel, #16k context
                     "gpt-3.5-turbo-16k": OpenAIModel, # gpt-3.5-turbo-16k-0613, 16k context
                     "gpt-4": OpenAIModel, # 8k context
                     "gpt-4-0125-preview": OpenAIModel, #128k context
-                    "gemini-1.5-pro": VertexAIModel,
+                    "gemini-pro": VertexAIModel,
+                    "claude-2.1": AnthropicModel,
                     "text-embedding-ada-002": OpenAIEmbeddingsModel
                     }

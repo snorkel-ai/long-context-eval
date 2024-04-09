@@ -1,6 +1,7 @@
 from typing import Optional
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain.prompts.prompt import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.output_parsers.json import SimpleJsonOutputParser
@@ -20,7 +21,6 @@ class Title(BaseModel):
 class ScoreQA(BaseModel):
     correct: bool = Field(description="boolean flag if answer and gold standard answer are the same")
 
-
 ###### define the prompt templates
 PROMPT_TEMPLATES = {
     "single_doc_question_gen_prompt": """Ask a factoid question given only the context provided, that can be answered in a few words. Answer the question given the context.
@@ -32,7 +32,7 @@ PROMPT_TEMPLATES = {
     Question: {question}
     Answer:""",
     # Format your result in a JSON object with keys 'answer'.
-    "title_prompt": """Return a JSON object with a `title` for the following text. Do not use any special characters in the title.
+    "title_prompt": """For the question provided, return a JSON object with a `title` for the following text. Do not use any special characters in the title.
     Text: {text}
     JSON: """,
     "score_qa_prompt": """Return a JSON object with a `correct` key as a boolean, if the given answer and gold standard answer are the same in meaning (may be worded differently).
@@ -49,6 +49,12 @@ def get_prompt_and_format(prompt_str: str):
     elif prompt_str == 'single_doc_qa_prompt':
         return PromptTemplate(template=PROMPT_TEMPLATES["single_doc_qa_prompt"],
                                            input_variables=["context", "question"]), StrOutputParser()
+    elif prompt_str == 'single_doc_qa_prompt_anthropic':
+        system = (
+            "You are a question answering assistant."
+        )
+        human = PROMPT_TEMPLATES["single_doc_qa_prompt"]
+        return ChatPromptTemplate.from_messages([("system", system), ("human", human)]), StrOutputParser()
     elif prompt_str == 'title_prompt':
         return PromptTemplate(template=PROMPT_TEMPLATES["title_prompt"],
                                            input_variables=["text"]), SimpleJsonOutputParser(pydantic_object=Title)

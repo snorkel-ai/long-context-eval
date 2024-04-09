@@ -2,6 +2,7 @@ import os
 import json
 from typing import Optional
 from jsonargparse import CLI
+import tiktoken
 from datasets import load_dataset
 from dataclasses import dataclass, field
 from langchain_openai import ChatOpenAI
@@ -22,12 +23,13 @@ def create_datastore(data_path,
                      hfdatasettextcol: Optional[str] = "text",
                      hfdataset_num_docs: Optional[int] = 100,
                      data_generation_model_name: Optional[str] = "gpt-3.5-turbo",
-                     data_generation_model_kwargs: Optional[dict] = dict(temperature=0.8)):
+                     data_generation_model_kwargs: Optional[dict] = dict(temperature=0.8),
+                     seed: Optional[int] = 42):
     '''Creates documents from a Hugging Face dataset if ./data folder is empty'''
     print(f"Creating ({hfdataset_num_docs}) documents in {data_path} from {hfdataset} with {data_generation_model_name}")
     ds = load_dataset(hfdataset, split=hfdatasetsplit)
     sample_dataset = ds.filter(lambda example: example[hfdatasetfilterdictkey].startswith(hfdatasetfilterdictvalue))
-    sample_dataset = sample_dataset.shuffle().select(range(hfdataset_num_docs))
+    sample_dataset = sample_dataset.shuffle(seed=seed).select(range(hfdataset_num_docs))
 
     # Define the model, prompt and format for chain
     api_key = os.getenv('OPENAI_API_KEY')
@@ -35,6 +37,11 @@ def create_datastore(data_path,
                             openai_api_key=api_key,
                             **data_generation_model_kwargs)
     
+    # print # of tokens from this dataset
+    long_context = "\n\n".join(sample_dataset[hfdatasettextcol])
+    encoding = tiktoken.encoding_for_model(data_generation_model_name)
+    print("Total # of tokens: ", len(encoding.encode(long_context)))
+
     #check how many samples we need
     full_text = "\n \n".join(sample_dataset[hfdatasettextcol])
     print("total # of tokens", model.get_num_tokens(full_text))
