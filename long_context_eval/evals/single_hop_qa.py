@@ -18,6 +18,9 @@ from parameters import prompts_formats as prompts_formats
 from parameters import models as models
 from utils.create_qa_pairs import create_qa_pairs_single_hop
 
+# import langchain
+# langchain.debug = True
+
 
 class SingleHopQATest:
     """
@@ -104,7 +107,7 @@ class SingleHopQATest:
                                     show_progress=True,)
                                     # use_multithreading=True,)
             self.loaded_documents = loader.load()
-            print("# of documents: ", len(self.loaded_documents))
+            print("# of loaded documents: ", len(self.loaded_documents))
 
         # create QA pairs from documents
         try:
@@ -254,7 +257,7 @@ class SingleHopQATest:
         q = qa_pair.get("question", "")
         f = qa_pair.get("answer_doc", "")
 
-        for position in tqdm(positions):            
+        for position in tqdm(positions):
             # for each position, generate llm answer to the question
             # get test document
             test_doc = self.documents[f]
@@ -392,7 +395,7 @@ class SingleHopQATest:
 
         #### Test for position
         positions = [0, int(len(self.documents)*.25), int(len(self.documents)*.5),
-                          int(len(self.documents)*.75), len(self.documents)]
+                     int(len(self.documents)*.75), len(self.documents)]
         # positions = range(len(self.documents)+1)
         print(f"Run position test on long context for {self.model_name} at positions: {positions}")
 
