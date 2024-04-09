@@ -35,11 +35,11 @@ export OPENAI_API_KEY=<YOUR_OPENAI_KEY>
 ```
 
 ```zsh
-(venv) $ python long_context_eval/run_benchmark.py --model_name gpt-3.5-turbo \
-                                                   --data_path ./data \
-                                                   --task_path ./data.json \
-                                                   --experiment_tag QAtest \
-                                                   --seed 42
+python long_context_eval/run_benchmark.py --model_name gpt-3.5-turbo \
+                                          --data_path ./data \
+                                          --task_path ./data.json \
+                                          --experiment_tag QAtest \
+                                          --seed 42
 
 ```
 
