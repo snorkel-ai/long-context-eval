@@ -26,7 +26,7 @@ class SingleHopQATest:
     def __init__(self,
                  model_name: Optional[str] = "gpt-3.5-turbo",
                  data_path: Optional[str] = "../data",
-                 qa_pairs_path: Optional[str] = './data.json',
+                 task_path: Optional[str] = './data.json',
                  model_kwargs: Optional[dict] = dict(temperature=0.7),
                  chunk_size: Optional[int] = 1000,
                  chunk_overlap: Optional[int] = 200,
@@ -44,7 +44,7 @@ class SingleHopQATest:
                  ):
         self.model_name = model_name
         self.data_path = data_path
-        self.qa_pairs_path = qa_pairs_path
+        self.task_path = task_path
         self.model_kwargs = model_kwargs
         # RAG parameters
         self.chunk_size = chunk_size
@@ -108,11 +108,11 @@ class SingleHopQATest:
 
         # create QA pairs from documents
         try:
-            self.qa_pairs = json.load(open(self.qa_pairs_path))
+            self.qa_pairs = json.load(open(self.task_path))
         except Exception as e:
             print(f"Creating QA pairs from documents at {self.data_path} ...")
             self.qa_pairs = create_qa_pairs_single_hop(self.loaded_documents,
-                                                  self.qa_pairs_path,
+                                                  self.task_path,
                                                   self.data_gen_prompt,
                                                   self.data_gen_format,
                                                 )
@@ -128,7 +128,7 @@ class SingleHopQATest:
         self.qa_pairs = {k: v for k, v in self.qa_pairs.items() if v["answer_doc"] in self.documents}
         print("# of QA pairs to test: ", len(self.qa_pairs))
 
-        # with open(os.path.join(self.qa_pairs_path), 'w') as f:
+        # with open(os.path.join(self.task_path), 'w') as f:
         #     f.write(json.dumps(self.qa_pairs))
 
     def _get_or_truncate_context_window(self, documents):

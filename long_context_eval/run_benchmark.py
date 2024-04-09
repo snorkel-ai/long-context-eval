@@ -14,7 +14,7 @@ load_dotenv()
 class Settings:
     model_name: Optional[str] = "gpt-3.5-turbo"
     data_path: Optional[str] = "./data"
-    qa_pairs_path: Optional[str] = "./data.json"
+    task_path: Optional[str] = "./data.json"
     model_kwargs: Optional[dict] = field(default_factory=lambda: dict(temperature=0.7))
     chunk_size: Optional[int] = 1000
     chunk_overlap: Optional[int] = 200
