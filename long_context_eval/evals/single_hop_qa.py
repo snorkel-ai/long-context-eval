@@ -85,7 +85,7 @@ class SingleHopQATest:
     def __str__(self):
         vars = []
         for k, v in self.__dict__.items():
-            if str(k) == "documents" or "loaded_documents":
+            if (str(k) == "documents") or (str(k) == "loaded_documents"):
                 continue
             try:
                 vars.append("{} = {}".format(k, v))
@@ -186,9 +186,9 @@ class SingleHopQATest:
         # now that we have the context, generate an answer to the doc question
         chain = prompt | self.model.model | formatter
         
-        num_token = self.model.model.get_num_tokens_from_messages(messages=[
-        HumanMessage(content=prompt.format(context=context, question=q))
-    ])
+        num_token = len(self.encoding.encode(
+                    prompt.format(context=context, question=q)))
+                                         
         assert num_token < self.model.max_context_size, f"{num_token} context size is greater than max context length {self.model.max_context_size}"
         ## TODO: Remove this condition since we assert
         if num_token > self.model.max_context_size:
@@ -211,21 +211,15 @@ class SingleHopQATest:
                             "answer_document": f})
         return answers_dict
 
-    def _get_responses_rag(self, doc_set, qa_pair,
+    def _get_responses_rag(self, retriever, qa_pair,
                            prompt, formatter):
         def format_docs(docs):
             return "\n\n".join(doc.page_content for doc in docs)
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,
-                                                            chunk_overlap=self.chunk_overlap)
-        splits = text_splitter.split_documents(doc_set)
-        vectorstore = Chroma.from_documents(documents=splits, embedding=self.embedding_model.model)
-        retriever = vectorstore.as_retriever(search_kwargs=self.search_kwargs)
-
         q = qa_pair.get("question", "")
         f = qa_pair.get("answer_doc", "")
 
-        retrieved_docs = [doc.page_content for doc in retriever.get_relevant_documents(q)]
+        # retrieved_docs = [doc.page_content for doc in retriever.get_relevant_documents(q)]
 
         # now that we have the context, generate an answer to the doc question
         chain = {"context": retriever | format_docs, "question": RunnablePassthrough()} | prompt | self.model.model | formatter
@@ -243,9 +237,8 @@ class SingleHopQATest:
                              "embedding_model_kwargs": self.embedding_model_kwargs,
                              "chunk_size": self.chunk_size, "chunk_overlap": self.chunk_overlap,
                              "search_kwargs": self.search_kwargs,
-                             "retrieved_docs": retrieved_docs})
-        
-        vectorstore.delete_collection()
+                            #  "retrieved_docs": retrieved_docs
+                             })
 
         return answers_dict
 
@@ -394,9 +387,9 @@ class SingleHopQATest:
         test_start_time = time.time()
 
         #### Test for position
-        positions = [0, int(len(self.documents)*.25), int(len(self.documents)*.5),
-                     int(len(self.documents)*.75), len(self.documents)]
-        # positions = range(len(self.documents)+1)
+        # positions = [0, int(len(self.documents)*.25), int(len(self.documents)*.5),
+        #              int(len(self.documents)*.75), len(self.documents)]
+        positions = range(len(self.documents)+1)
         print(f"Run position test on long context for {self.model_name} at positions: {positions}")
 
         answers_at_position = {i: [] for i in positions}
@@ -412,9 +405,9 @@ class SingleHopQATest:
         score_output = self._evaluate_responses(answers_at_position)
 
         # save score results
-        if not os.path.exists("./outputs"): os.makedirs("./outputs")
+        if not os.path.exists("./outputs/position"): os.makedirs("./outputs/position")
         date_time = datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
-        save_path = f"./outputs/position_test_results_{self.experiment_tag}-{self.model_name}-{date_time}.json"
+        save_path = f"./outputs/position/position_test_results_{self.experiment_tag}-{self.model_name}-{date_time}.json"
         with open(os.path.join(save_path), 'w') as f:
             f.write(json.dumps(score_output))
 
@@ -437,10 +430,11 @@ class SingleHopQATest:
         print("\n\n")
         test_start_time = time.time()
 
-        print(">>>>Generate llm responses w/ long context and RAG at increasing noise levels...")
+        noise_levels = [0, int(len(self.documents)*.25), int(len(self.documents)*.5),
+                               int(len(self.documents)*.75), len(self.documents)]
+        print(f">>>>Generate llm responses w/ long context and RAG at noise levels {noise_levels}...")
         answers_at_noise_level = {}
-        for num_noisy_docs in [0, int(len(self.documents)*.25), int(len(self.documents)*.5),
-                               int(len(self.documents)*.75), len(self.documents)]: #range(len(self.documents)):
+        for num_noisy_docs in noise_levels: #range(len(self.documents)):
             answers_long_ctxt, answers_rag = [], []
             print("# of noisy documents: ", num_noisy_docs)
             for _, qa_pair in tqdm(self.qa_pairs.items()):
@@ -448,12 +442,24 @@ class SingleHopQATest:
 
                 answers_dict = self._get_responses_long_ctxt(doc_set, qa_pair,
                                                              self.task_prompt, self.task_format)
-                answers_long_ctxt.append(answers_dict)       
+                answers_long_ctxt.append(answers_dict)
 
-                rag_answers_dict = self._get_responses_rag(doc_set, qa_pair,
+
+                # add sleep if you see request errors
+                # time.sleep(20)
+
+                text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,
+                                                            chunk_overlap=self.chunk_overlap)
+                splits = text_splitter.split_documents(doc_set)
+                vectorstore = Chroma.from_documents(documents=splits, embedding=self.embedding_model.model)
+                retriever = vectorstore.as_retriever(search_kwargs=self.search_kwargs)
+
+                rag_answers_dict = self._get_responses_rag(retriever, qa_pair,
                                                            self.task_prompt, self.task_format)
 
                 answers_rag.append(rag_answers_dict)
+
+                vectorstore.delete_collection()
             
             answers_at_noise_level[num_noisy_docs] = {"long_ctxt": answers_long_ctxt,
                                                       "rag": answers_rag}
@@ -463,9 +469,9 @@ class SingleHopQATest:
         score_output = self._evaluate_long_ctxt_rag_responses(answers_at_noise_level)
 
         # save score results
-        if not os.path.exists("./outputs"): os.makedirs("./outputs")
+        if not os.path.exists("./outputs/rag"): os.makedirs("./outputs/rag")
         date_time = datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
-        save_path = f"./outputs/long_ctxt_rag_test_results_{self.experiment_tag}-{self.model_name}-{date_time}.json"
+        save_path = f"./outputs/rag/long_ctxt_rag_test_results_{self.experiment_tag}-{self.model_name}-{date_time}.json"
         with open(os.path.join(save_path), 'w') as f:
             f.write(json.dumps(score_output))
 

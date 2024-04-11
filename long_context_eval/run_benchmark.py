@@ -42,8 +42,6 @@ def main():
     logging.basicConfig(filename=args.log_path,level=logging.DEBUG)
     logging.info(lctest)
 
-    # lctest.test_rag()
-
 
 if __name__ == '__main__':
     main()

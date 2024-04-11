@@ -31,6 +31,10 @@ PROMPT_TEMPLATES = {
     Context: {context}
     Question: {question}
     Answer:""",
+    "single_doc_qa_prompt_anthropic": """Answer the question given only the context provided. Just provide the answer without any reasoning.
+    Context: {context}
+    Question: {question}
+    Answer:""",
     # Format your result in a JSON object with keys 'answer'.
     "title_prompt": """For the question provided, return a JSON object with a `title` for the following text. Do not use any special characters in the title.
     Text: {text}
@@ -53,7 +57,7 @@ def get_prompt_and_format(prompt_str: str):
         system = (
             "You are a question answering assistant."
         )
-        human = PROMPT_TEMPLATES["single_doc_qa_prompt"]
+        human = PROMPT_TEMPLATES["single_doc_qa_prompt_anthropic"]
         return ChatPromptTemplate.from_messages([("system", system), ("human", human)]), StrOutputParser()
     elif prompt_str == 'title_prompt':
         return PromptTemplate(template=PROMPT_TEMPLATES["title_prompt"],
