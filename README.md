@@ -36,8 +36,8 @@ export OPENAI_API_KEY=<YOUR_OPENAI_KEY>
 
 ```zsh
 python long_context_eval/run_benchmark.py --model_name gpt-3.5-turbo \
-                                          --data_path ./data \
-                                          --task_path ./data.json \
+                                          --data_path ./data/cosmowikidataset \
+                                          --task_path ./long_context_eval/tasks/data_cosmowiki.json \
                                           --experiment_tag QAtest \
                                           --seed 42
 
