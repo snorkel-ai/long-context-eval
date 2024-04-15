@@ -25,7 +25,7 @@ cd long-context-eval
 pip install -r requirements.txt
 ```
 
-See instructions on the data and task formats [here](./Data.md)
+See instructions on the data and task formats [here](DATA.md)
 
 
 We use the LangChain library for running models. Set up the appropriate API keys and environment variables to access/run models. See LangChain's documentation.
