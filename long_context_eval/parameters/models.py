@@ -17,6 +17,8 @@ MAX_CONTEXT_SIZE = {"gpt-3.5-turbo": 16385,
                     "claude-2.1": 150_000,  # Claude is truncated currently since we use GPT-4 tokenizer to count tokens
                     "claude-3-opus-20240229": 150_000,
                     "databricks/dbrx-instruct": 32_000,
+                    "mistralai/Mixtral-8x7B-Instruct-v0.1": 25_000,
+                    "microsoft/WizardLM-2-8x22B": 55_000,
                     }
 
 
@@ -76,7 +78,7 @@ class AnthropicModel(BaseModel):
 class TogetherAPIModel(BaseModel):
     def __init__(self, 
                  model_name: str,
-                 model_kwargs: dict = dict(temperature=0.8, stop=["</s>", "\n"])):
+                 model_kwargs: dict = dict(temperature=0.8)):
         super().__init__(model_name)
         api_key = os.getenv("TOGETHER_API_KEY")
         self.model = Together(model=model_name,
@@ -109,5 +111,7 @@ SUPPORTED_MODELS = {"gpt-3.5-turbo": OpenAIModel, #16k context
                     "claude-2.1": AnthropicModel,
                     "claude-3-opus-20240229": AnthropicModel,
                     "databricks/dbrx-instruct": TogetherAPIModel,
+                    "mistralai/Mixtral-8x7B-Instruct-v0.1": TogetherAPIModel,
+                    "microsoft/WizardLM-2-8x22B": TogetherAPIModel,
                     "text-embedding-ada-002": OpenAIEmbeddingsModel,
                     }
