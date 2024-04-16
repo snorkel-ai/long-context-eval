@@ -74,4 +74,4 @@ def get_prompt_and_format(prompt_str: str):
         return PromptTemplate(template=PROMPT_TEMPLATES["score_qa_prompt"],
                                            input_variables=["question", "answer", "gold_answer"]), SimpleJsonOutputParser(pydantic_object=ScoreQA)
     else:
-        raise
+        raise ValueError(f"{prompt_str} key not found in prompts!")
