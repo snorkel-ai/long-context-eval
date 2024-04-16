@@ -5,8 +5,8 @@
 ### Tests
 
 - Single Document QA
-    - [ ] Retrieval accuracy versus document depth
-    - [ ] Retrieval accuracy: Long context versus RAG accuracy
+    - [X] Retrieval accuracy versus document depth
+    - [X] Retrieval accuracy: Long context versus RAG accuracy
     - [ ] Hallucination indicator: When the document is not present in context
 - Multi Document QA
     - [ ] TBD
@@ -54,7 +54,7 @@ python long_context_eval/run_benchmark.py --help
 The process of testing long context is as follows:
 
 1. If no task json is provided for the QA task at `task_path`, QA pairs are first generated for each document at `data_path`. Currently only 1 QA pair is generated per document using GPT-4 and QA pairs are saved in `./data.json`.
-2. In order to test the model's context window capability, we fill the model's context window by selecting documents at random from `data_path` and corresponding QA pairs until the token limit is reached.
+2. In order to test the model's context window capability, we fill the model's context window by selecting documents at random from `data_path` and corresponding QA pairs until the token limit is reached. We use `tiktoken` to count tokens, so this is approximate for models that do not use the same tokenization.
 3. For each document depth, the document containing the answer is positioned at the desired depth in the context, and an LLM response is generated. Currently we test at 0, 25, 50, 75, and 100% depths.
 4. For the RAG test, Langchain's pipeline using Chroma DB (with default parameters) is used to retrieve documents and used as context to generate the response.
 5. Model responses are evaluated using LLM-as-a-judge (we recommend manually verifying the results, since auto-evals are known to have errors.)
