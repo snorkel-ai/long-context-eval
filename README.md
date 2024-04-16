@@ -28,7 +28,7 @@ pip install -r requirements.txt
 See instructions on the data and task formats [here](DATA.md)
 
 
-We use the LangChain library for running models. Set up the appropriate API keys and environment variables to access/run models. See LangChain's documentation.
+We use the LangChain library for running models. Set up the appropriate API keys and environment variables to access/run models. See LangChain's documentation. For a list of models that you can test on, see `models.py`. A new model can be easily added in `models.py`. 
 
 ```zsh
 export OPENAI_API_KEY=<YOUR_OPENAI_KEY>

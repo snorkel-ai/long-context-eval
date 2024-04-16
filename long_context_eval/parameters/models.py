@@ -16,7 +16,7 @@ MAX_CONTEXT_SIZE = {"gpt-3.5-turbo": 16385,
                     "gemini-1.5-pro-preview-0409": 500_000,
                     "claude-2.1": 150_000,  # Claude is truncated currently since we use GPT-4 tokenizer to count tokens
                     "claude-3-opus-20240229": 150_000,
-                    "databricks/dbrx-instruct": 28_000,
+                    "databricks/dbrx-instruct": 32_000,
                     }
 
 
@@ -76,7 +76,7 @@ class AnthropicModel(BaseModel):
 class TogetherAPIModel(BaseModel):
     def __init__(self, 
                  model_name: str,
-                 model_kwargs: dict = dict(temperature=0.8),):
+                 model_kwargs: dict = dict(temperature=0.8, stop=["</s>", "\n"])):
         super().__init__(model_name)
         api_key = os.getenv("TOGETHER_API_KEY")
         self.model = Together(model=model_name,
