@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import json
 from datetime import datetime
@@ -36,7 +37,7 @@ class SingleHopQATest:
                  search_kwargs: Optional[dict] = {"k": 4},
                  embedding_model_name: Optional[str] = 'text-embedding-ada-002',
                  embedding_model_kwargs: Optional[dict] = {},
-                 eval_model_name: Optional[str] = "gpt-4",
+                 eval_model_name: Optional[str] = "gpt-4-turbo-2024-04-09",
                  eval_model_kwargs: Optional[dict] = dict(temperature=0),
                  experiment_tag: Optional[str] = "tag",
                  log_path: Optional[str] = "experiments.log",
@@ -175,6 +176,15 @@ class SingleHopQATest:
         self.rng.shuffle(doc_set)
         return doc_set
 
+    def _create_doc_set_for_hallucination(self, qa_pair):
+        f = qa_pair.get("answer_doc", "")
+
+        # get distractor docs
+        docs_copy = [doc for k, doc in self.documents.items() if k != f]
+        self.rng.shuffle(docs_copy)
+
+        return docs_copy
+
     def _get_responses_long_ctxt(self, doc_set, qa_pair, 
                                  prompt, formatter):
         q = qa_pair.get("question", "")
@@ -208,7 +218,9 @@ class SingleHopQATest:
                             "model": self.model_name, "model_kwargs": self.model_kwargs, 
                             "context_list": context_doc_names,
                             # "context": context,
-                            "answer_document": f})
+                            "answer_document": f,
+                            "eval_prompt": self.eval_prompt.template,
+                            "eval_model": self.eval_model_name})
         return answers_dict
 
     def _get_responses_rag(self, retriever, qa_pair,
@@ -238,6 +250,8 @@ class SingleHopQATest:
                              "chunk_size": self.chunk_size, "chunk_overlap": self.chunk_overlap,
                              "search_kwargs": self.search_kwargs,
                             #  "retrieved_docs": retrieved_docs
+                             "eval_prompt": self.eval_prompt.template,
+                             "eval_model": self.eval_model_name
                              })
 
         return answers_dict
@@ -322,7 +336,9 @@ class SingleHopQATest:
                                     "model": self.model_name, "model_kwargs": self.model_kwargs, 
                                     "start_tokens": start_tokens, "end_tokens": end_tokens,
                                     "context_list": context_doc_names,
-                                    "answer_document": test_doc.metadata["source"]})
+                                    "answer_document": test_doc.metadata["source"],
+                                    "eval_prompt": self.eval_prompt.template,
+                                    "eval_model": self.eval_model_name})
             answers_at_position[position].append(answers_dict)
         return answers_at_position
 
@@ -336,7 +352,8 @@ class SingleHopQATest:
             for idx, response_dict in enumerate(documents):
                 # score for correctness using llm-as-a-judge
                 chain = self.eval_prompt | self.eval_model.model | self.eval_format
-                score_response = chain.invoke({"answer": response_dict["llm_response"],
+                score_response = chain.invoke({"question": response_dict["question"],
+                                               "answer": response_dict["llm_response"],
                                                "gold_answer": response_dict["answer"]})
                 response_dict["score"] = int(score_response["correct"])
                 scored_output_at_position.append(response_dict)
@@ -345,8 +362,10 @@ class SingleHopQATest:
             print(f"Acc at position {position}: {sum(scores)/len(scores)*100:.1f}%")
         return score_output
     
-    def _evaluate_long_ctxt_rag_responses(self, answers):
+    def _evaluate_responses_long_ctxt_rag(self, answers):
         ## evaluation using llm-as-a-judge
+
+        chain = self.eval_prompt | self.eval_model.model | self.eval_format
 
         score_output = {}
         for num_noisy_docs, response_dict in answers.items():
@@ -356,10 +375,11 @@ class SingleHopQATest:
             
             scored_output_long_ctxt = []
             scores_long_ctxt = []
+
             for idx, long_ctxt_response in enumerate(long_ctxt_responses):
                 # score for correctness using llm-as-a-judge
-                chain = self.eval_prompt | self.eval_model.model | self.eval_format
-                score_response = chain.invoke({"answer": long_ctxt_response["llm_response"],
+                score_response = chain.invoke({"question": long_ctxt_response["question"],
+                                               "answer": long_ctxt_response["llm_response"],
                                                "gold_answer": long_ctxt_response["answer"]})
                 long_ctxt_response["score"] = int(score_response["correct"])
                 scored_output_long_ctxt.append(long_ctxt_response)
@@ -371,8 +391,8 @@ class SingleHopQATest:
             scores_rag = []
             for idx, rag_response in enumerate(rag_responses):
                 # score for correctness using llm-as-a-judge
-                chain = self.eval_prompt | self.eval_model.model | self.eval_format
-                score_response = chain.invoke({"answer": rag_response["llm_response"],
+                score_response = chain.invoke({"question": rag_response["question"],
+                                               "answer": rag_response["llm_response"],
                                                "gold_answer": rag_response["answer"]})
                 rag_response["score"] = int(score_response["correct"])
                 scored_output_rag.append(rag_response)
@@ -382,14 +402,30 @@ class SingleHopQATest:
 
         return score_output
 
+    def _evaluate_responses_hallucination(self, documents):
+        ## evaluation using llm-as-a-judge
+        scores = []
+        for idx, response_dict in enumerate(documents):
+            # score for correctness using llm-as-a-judge
+            # TODO: To use a different evaluation prompt
+            chain = self.eval_prompt | self.eval_model.model | self.eval_format
+            score_response = chain.invoke({"question": response_dict["question"],
+                                            "answer": response_dict["llm_response"],
+                                            "gold_answer": response_dict["answer"]})
+            response_dict["score"] = int(score_response["correct"])
+            scores.append(score_response["correct"])
+        print(f"Acc: {sum(scores)/len(scores)*100:.1f}%")
+        return scores
+
     def test_position_accuracy(self):
         print("\n\n")
         test_start_time = time.time()
 
         #### Test for position
-        # positions = [0, int(len(self.documents)*.25), int(len(self.documents)*.5),
-        #              int(len(self.documents)*.75), len(self.documents)]
-        positions = range(len(self.documents)+1)
+        positions = [0, int(len(self.documents)*.25), int(len(self.documents)*.5),
+                     int(len(self.documents)*.75), len(self.documents)]
+        # positions = [int(len(self.documents)*.25)]
+        # positions = range(len(self.documents)+1)
         print(f"Run position test on long context for {self.model_name} at positions: {positions}")
 
         answers_at_position = {i: [] for i in positions}
@@ -400,6 +436,14 @@ class SingleHopQATest:
                                          self.task_prompt, self.task_format,
                                          answers_at_position, positions)
 
+        # save responses
+        model_name = re.sub("/", "-", self.model_name)
+        if not os.path.exists("./responses/position"): os.makedirs("./responses/position")
+        date_time = datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
+        save_path = f"./responses/position/position_test_results_{self.experiment_tag}-{model_name}-{date_time}.json"
+        with open(os.path.join(save_path), 'w') as f:
+            f.write(json.dumps(answers_at_position))
+
         # evaluate the responses
         print(">>>>Evaluating responses using llm-as-a-judge")
         score_output = self._evaluate_responses(answers_at_position)
@@ -407,7 +451,8 @@ class SingleHopQATest:
         # save score results
         if not os.path.exists("./outputs/position"): os.makedirs("./outputs/position")
         date_time = datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
-        save_path = f"./outputs/position/position_test_results_{self.experiment_tag}-{self.model_name}-{date_time}.json"
+        
+        save_path = f"./outputs/position/position_test_results_{self.experiment_tag}-{model_name}-{date_time}.json"
         with open(os.path.join(save_path), 'w') as f:
             f.write(json.dumps(score_output))
 
@@ -445,8 +490,8 @@ class SingleHopQATest:
                 answers_long_ctxt.append(answers_dict)
 
 
-                # add sleep if you see request errors
-                # time.sleep(20)
+                # # add sleep if you see request errors
+                # time.sleep(40)
 
                 text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,
                                                             chunk_overlap=self.chunk_overlap)
@@ -460,22 +505,61 @@ class SingleHopQATest:
                 answers_rag.append(rag_answers_dict)
 
                 vectorstore.delete_collection()
-            
+
             answers_at_noise_level[num_noisy_docs] = {"long_ctxt": answers_long_ctxt,
                                                       "rag": answers_rag}
 
+        # save response results
+        model_name = re.sub("/", "-", self.model_name)
+        if not os.path.exists("./responses/rag"): os.makedirs("./responses/rag")
+        date_time = datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
+        save_path = f"./responses/rag/long_ctxt_rag_responses_{self.experiment_tag}-{model_name}-{date_time}.json"
+        with open(os.path.join(save_path), 'w') as f:
+            f.write(json.dumps(answers_at_noise_level))
+
         # evaluate the responses
         print(">>>>Evaluating RAG responses using llm-as-a-judge")
-        score_output = self._evaluate_long_ctxt_rag_responses(answers_at_noise_level)
+        score_output = self._evaluate_responses_long_ctxt_rag(answers_at_noise_level)
 
         # save score results
         if not os.path.exists("./outputs/rag"): os.makedirs("./outputs/rag")
         date_time = datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
-        save_path = f"./outputs/rag/long_ctxt_rag_test_results_{self.experiment_tag}-{self.model_name}-{date_time}.json"
+        save_path = f"./outputs/rag/long_ctxt_rag_test_results_{self.experiment_tag}-{model_name}-{date_time}.json"
         with open(os.path.join(save_path), 'w') as f:
             f.write(json.dumps(score_output))
 
         test_end_time = time.time()
         test_elapsed_time = test_end_time - test_start_time
         print(f"RAG Test Duration: {test_elapsed_time:.1f} seconds")
+        print(f"Results saved at {save_path}")
+
+    def test_hallucination(self):
+        """Tests the performance of a model when the document is not present in the context.
+        """
+        print("\n\n")
+        test_start_time = time.time()
+
+        print(f">>>>Generate llm responses for hallucination test...")
+        answers_long_ctxt = []
+        for _, qa_pair in tqdm(self.qa_pairs.items()):
+            doc_set = self._create_doc_set_for_hallucination(qa_pair)
+
+            answers_dict = self._get_responses_long_ctxt(doc_set, qa_pair,
+                                                            self.task_prompt, self.task_format)
+            answers_long_ctxt.append(answers_dict)
+
+        # evaluate the responses
+        print(">>>>Evaluating RAG responses using llm-as-a-judge")
+        score_output = self._evaluate_responses_hallucination(answers_long_ctxt)
+
+        # save score results
+        if not os.path.exists("./outputs/hallucinate"): os.makedirs("./outputs/hallucinate")
+        date_time = datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
+        save_path = f"./outputs/hallucinate/hallucination_test_results_{self.experiment_tag}-{self.model_name}-{date_time}.json"
+        with open(os.path.join(save_path), 'w') as f:
+            f.write(json.dumps(score_output))
+
+        test_end_time = time.time()
+        test_elapsed_time = test_end_time - test_start_time
+        print(f"Hallucination Test Duration: {test_elapsed_time:.1f} seconds")
         print(f"Results saved at {save_path}")

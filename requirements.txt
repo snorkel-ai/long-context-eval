@@ -10,4 +10,5 @@ unstructured
 langchain-openai
 langchain-anthropic
 langchain-google-vertexai
+langchain-together
 chromadb

@@ -39,7 +39,12 @@ PROMPT_TEMPLATES = {
     "title_prompt": """For the question provided, return a JSON object with a `title` for the following text. Do not use any special characters in the title.
     Text: {text}
     JSON: """,
-    "score_qa_prompt": """Return a JSON object with a `correct` key as a boolean, if the given answer and gold standard answer are the same in meaning (may be worded differently).
+    "score_qa_prompt_old": """Return a JSON object with a `correct` key as a boolean, if the given answer and gold standard answer are the same in meaning (may be worded differently).
+    Answer: {answer}
+    Gold standard answer: {gold_answer}
+    JSON:""",
+    "score_qa_prompt": """For the question provided, return a JSON object with a `correct` key as a boolean, if the given answer and gold standard answer are the same in meaning (may be worded differently).
+    Question: {question}
     Answer: {answer}
     Gold standard answer: {gold_answer}
     JSON:""",
@@ -62,8 +67,11 @@ def get_prompt_and_format(prompt_str: str):
     elif prompt_str == 'title_prompt':
         return PromptTemplate(template=PROMPT_TEMPLATES["title_prompt"],
                                            input_variables=["text"]), SimpleJsonOutputParser(pydantic_object=Title)
+    elif prompt_str == 'score_qa_prompt_old':
+        return PromptTemplate(template=PROMPT_TEMPLATES["score_qa_prompt_old"],
+                                           input_variables=["answer", "gold_answer"]), SimpleJsonOutputParser(pydantic_object=ScoreQA)
     elif prompt_str == 'score_qa_prompt':
         return PromptTemplate(template=PROMPT_TEMPLATES["score_qa_prompt"],
-                                           input_variables=["answer", "gold_answer"]), SimpleJsonOutputParser(pydantic_object=ScoreQA)
+                                           input_variables=["question", "answer", "gold_answer"]), SimpleJsonOutputParser(pydantic_object=ScoreQA)
     else:
         raise

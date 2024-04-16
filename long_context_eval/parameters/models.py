@@ -4,6 +4,7 @@ import tiktoken
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_google_vertexai import VertexAI
 from langchain_anthropic import ChatAnthropic
+from langchain_together import Together
 
 
 MAX_CONTEXT_SIZE = {"gpt-3.5-turbo": 16385,
@@ -14,7 +15,8 @@ MAX_CONTEXT_SIZE = {"gpt-3.5-turbo": 16385,
                     "gemini-pro": 32_760,
                     "gemini-1.5-pro-preview-0409": 500_000,
                     "claude-2.1": 150_000,  # Claude is truncated currently since we use GPT-4 tokenizer to count tokens
-                    "claude-3-opus-20240229": 150_000
+                    "claude-3-opus-20240229": 150_000,
+                    "databricks/dbrx-instruct": 28_000,
                     }
 
 
@@ -58,14 +60,28 @@ class AnthropicModel(BaseModel):
                  model_name: str,
                  model_kwargs: dict = dict(temperature=0.8),):
         super().__init__(model_name)
-        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        api_key = os.getenv("ANTHROPIC_API_KEY")
         if "temperature" in model_kwargs:
             self.model = ChatAnthropic(model=model_name,
-                                    anthropic_api_key=anthropic_api_key,
+                                    anthropic_api_key=api_key,
                                     temperature=model_kwargs["temperature"])
         else:
             self.model = ChatAnthropic(model=model_name,
-                                    anthropic_api_key=anthropic_api_key)
+                                    anthropic_api_key=api_key)
+        self.max_context_size = MAX_CONTEXT_SIZE[model_name]
+        # To get the tokeniser corresponding to a specific model
+        self.encoding = tiktoken.encoding_for_model("gpt-4")
+
+
+class TogetherAPIModel(BaseModel):
+    def __init__(self, 
+                 model_name: str,
+                 model_kwargs: dict = dict(temperature=0.8),):
+        super().__init__(model_name)
+        api_key = os.getenv("TOGETHER_API_KEY")
+        self.model = Together(model=model_name,
+                                together_api_key=api_key,
+                                **model_kwargs)
         self.max_context_size = MAX_CONTEXT_SIZE[model_name]
         # To get the tokeniser corresponding to a specific model
         self.encoding = tiktoken.encoding_for_model("gpt-4")
@@ -92,5 +108,6 @@ SUPPORTED_MODELS = {"gpt-3.5-turbo": OpenAIModel, #16k context
                     "gemini-1.5-pro-preview-0409": VertexAIModel,
                     "claude-2.1": AnthropicModel,
                     "claude-3-opus-20240229": AnthropicModel,
-                    "text-embedding-ada-002": OpenAIEmbeddingsModel
+                    "databricks/dbrx-instruct": TogetherAPIModel,
+                    "text-embedding-ada-002": OpenAIEmbeddingsModel,
                     }
