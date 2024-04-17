@@ -1,6 +1,9 @@
 # Long Context Evaluation
 
-## Benchmark for testing long context windows on your own data
+## Evaluating long context model capabilities on your own data
+
+This repository provides a framework to evaluate the long context capabilities of large language models (LLMs) on your own data and tasks. This is similar to the "needle in a haystack" test, except the haystack is your own set of documents, and the needles are a task (for example, a Question-Answer pair) that are created from the documents. This follows a task generation >> task completion >> task evaluation process, enabled by LLMs. We strongly recommend manually verifying both the inputs (tasks) and outputs (scores).
+
 
 ### Tests
 
@@ -64,10 +67,7 @@ The process of testing long context is as follows:
 - [X] Test for retrieval scoring at different document depths
 - [X] Test for RAG
 - [X] Add support for Claude, Google
-- [ ] Add support for OSS models
+- [X] Add support for OSS models
 - [ ] Multiprocessing and async while running test
-- [ ] Results and visualization (table/charts)
-- [ ] Script to run for multiple models
 - [ ] Add decorator for logging time
 - [ ] Add intermediate depth results (so it doesn't rerun in case of any failure)
-- [ ] Test for / handle edge cases
