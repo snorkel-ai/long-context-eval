@@ -61,13 +61,3 @@ The process of testing long context is as follows:
 3. For each document depth, the document containing the answer is positioned at the desired depth in the context, and an LLM response is generated. Currently we test at 0, 25, 50, 75, and 100% depths.
 4. For the long context versus RAG test, starting with just the test document, the size of the context window is increased by adding distractor documents. For RAG, Langchain's pipeline using Chroma DB (with default parameters) is used to retrieve documents and used as context to generate the response. Currently we test at 0, 25, 50, 75 and 100% of context size.
 5. Model responses are evaluated using LLM-as-a-judge (we recommend manually verifying the results, since auto-evals are known to have errors.)
-
-
-### To-do
-- [X] Test for retrieval scoring at different document depths
-- [X] Test for RAG
-- [X] Add support for Claude, Google
-- [X] Add support for OSS models
-- [ ] Multiprocessing and async while running test
-- [ ] Add decorator for logging time
-- [ ] Add intermediate depth results (so it doesn't rerun in case of any failure)
