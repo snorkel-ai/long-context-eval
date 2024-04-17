@@ -2,7 +2,7 @@
 
 ## Evaluating long context model capabilities on your own data
 
-This repository provides a framework to evaluate the long context capabilities of large language models (LLMs) on your own data and tasks. This is similar to the "needle in a haystack" test, except the haystack is your own set of documents, and the needles are a task (for example, a Question-Answer pair) that are created from the documents. This follows an automated task generation >> task completion >> task evaluation process, enabled by LLMs. We strongly recommend manually verifying both the inputs (tasks) and outputs (scores).
+This repository provides a framework to evaluate the long context capabilities of large language models (LLMs) on your own data and tasks. This is similar to the "needle in a haystack" test, except the haystack is your own set of documents, and the needles are a task (for example, a Question-Answer pair) that is created from the documents. This follows an automated task generation >> task completion >> task evaluation process, enabled by LLMs. We strongly recommend manually verifying both the inputs (tasks) and outputs (scores).
 
 
 ### Tests
