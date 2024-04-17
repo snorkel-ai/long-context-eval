@@ -52,6 +52,15 @@ PROMPT_TEMPLATES = {
 
 
 def get_prompt_and_format(prompt_str: str):
+    """
+    Retrieves the prompt template and output parser based on the provided prompt string.
+
+    Args:
+        prompt_str (str): A string indicating the type of prompt template required.
+
+    Returns:
+        tuple: A tuple containing the prompt template and the output parser.
+    """
     if prompt_str == 'single_doc_question_gen_prompt':
         return PromptTemplate(template=PROMPT_TEMPLATES["single_doc_question_gen_prompt"],
                                            input_variables=["context"]), JsonOutputParser(pydantic_object=SingleDocQuestionGen) 

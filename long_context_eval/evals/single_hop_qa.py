@@ -95,7 +95,19 @@ class SingleHopQATest:
         return str(vars)
 
     def load_docs_and_qa_pairs(self,):
-                # check if data folder exists
+        """
+        Loads documents and corresponding question-answer pairs for experiments.
+        
+        Checks if the data folder exists and is not empty.
+        If documents have not been loaded previously, loads them from the specified data path.
+        Then, creates question-answer pairs from the loaded documents.
+        If question-answer pairs have been pre-saved, loads them; otherwise, generates new pairs.
+        Filters out pairs whose answer documents are not part of the loaded document set.
+        
+        Returns:
+            None
+        """
+        # check if data folder exists
         if not os.path.exists(self.data_path) or not os.listdir(self.data_path):
             print("No documents for running experiments.")
             exit(0)
@@ -136,7 +148,17 @@ class SingleHopQATest:
         #     f.write(json.dumps(self.qa_pairs))
 
     def _get_or_truncate_context_window(self, documents):
-        '''fill up the context window, and truncate if necessary'''
+        """
+        Fills up the context window with the input documents 
+        and truncates if necessary to fit within the maximum context size of the model.
+
+        Args:
+            documents (list): A list of document objects.
+
+        Returns:
+            list: A list of truncated documents that fit within the maximum context size 
+                of the model, or the original list of documents if no truncation is needed.
+        """
         long_context = "\n\n".join([doc.page_content for doc in documents])
         print("total # of tokens", len(self.encoding.encode(long_context)))
 
@@ -161,6 +183,18 @@ class SingleHopQATest:
         return truncated_docs
 
     def _create_doc_set_for_long_ctxt_rag(self, qa_pair, num_noisy_docs):
+        """
+        Creates a set of documents for long-context versus retrieval augmented generation (RAG) test.
+
+        Args:
+            qa_pair (dict): A dictionary representing a question-answer pair, with the "answer_doc" key indicating 
+                            the document ID containing the answer.
+            num_noisy_docs (int): The number of distractor documents to include in the set.
+
+        Returns:
+            list: A list of document objects, including the document containing the answer and optionally 
+                additional distractor documents.
+        """
         f = qa_pair.get("answer_doc", "")
 
         # get test document
@@ -187,6 +221,18 @@ class SingleHopQATest:
 
     def _get_responses_long_ctxt(self, doc_set, qa_pair, 
                                  prompt, formatter):
+        """
+        Generates responses for a given set of documents and a question-answer pair.
+
+        Args:
+            doc_set (list): A list of document objects constituting the context for the question-answer pair.
+            qa_pair (dict): A dictionary representing a question-answer pair.
+            prompt (PromptTemplate): The prompt template for generating the response.
+            formatter (langchain.output_parsers): The formatter to use for processing the response.
+            
+        Returns:
+            dict: A dictionary containing information about the generated response
+        """
         q = qa_pair.get("question", "")
         f = qa_pair.get("answer_doc", "")
         
@@ -225,6 +271,18 @@ class SingleHopQATest:
 
     def _get_responses_rag(self, retriever, qa_pair,
                            prompt, formatter):
+        """
+        Generates responses using the retrieval-augmented generation (RAG) approach.
+
+        Args:
+            retriever: The document retriever used to fetch relevant documents.
+            qa_pair (dict): A dictionary representing a question-answer pair.
+            prompt (PromptTemplate): The prompt template for generating the response.
+            formatter (langchain.output_parsers): The formatter to use for processing the response.
+
+        Returns:
+            dict: A dictionary containing information about the generated response.
+        """
         def format_docs(docs):
             return "\n\n".join(doc.page_content for doc in docs)
 
@@ -260,7 +318,18 @@ class SingleHopQATest:
                                     prompt, formatter,
                                     answers_at_position,
                                     positions):
-        
+        """
+        Generates responses at all positions for a single QA pair.
+
+        Args:
+            retriever: The document retriever used to fetch relevant documents.
+            qa_pair (dict): A dictionary representing a question-answer pair.
+            prompt (PromptTemplate): The prompt template for generating the response.
+            formatter (langchain.output_parsers): The formatter to use for processing the response.
+
+        Returns:
+            dict: A dictionary containing information about the generated response.
+        """
         q = qa_pair.get("question", "")
         f = qa_pair.get("answer_doc", "")
 
@@ -343,8 +412,15 @@ class SingleHopQATest:
         return answers_at_position
 
     def _evaluate_responses(self, answers_at_position):
-        ## evaluation using llm-as-a-judge
+        """
+        Evaluates the responses using llm-as-a-judge generated by the model at different positions.
 
+        Args:
+            answers_at_position (dict): A dictionary containing responses grouped by position.
+
+        Returns:
+            dict: A dictionary containing evaluated responses with additional scoring information.
+        """
         score_output = {}
         for position, documents in answers_at_position.items():
             scored_output_at_position = []
@@ -363,7 +439,15 @@ class SingleHopQATest:
         return score_output
     
     def _evaluate_responses_long_ctxt_rag(self, answers):
-        ## evaluation using llm-as-a-judge
+        """
+        Evaluates the responses using llm-as-a-judge generated by the model for different context sizes.
+
+        Args:
+            answers (dict): A dictionary containing responses grouped by context size.
+
+        Returns:
+            dict: A dictionary containing evaluated responses with additional scoring information.
+        """
 
         chain = self.eval_prompt | self.eval_model.model | self.eval_format
 
@@ -418,6 +502,15 @@ class SingleHopQATest:
         return scores
 
     def test_position_accuracy(self):
+        """
+        Tests the accuracy of the model at different positions within the document set.
+
+        This method evaluates the model's performance by generating responses at predefined positions 
+        within the document set. It saves the generated responses and their evaluations for analysis.
+
+        Returns:
+            None
+        """
         print("\n\n")
         test_start_time = time.time()
 
@@ -463,14 +556,9 @@ class SingleHopQATest:
 
     def test_long_context_length_versus_rag(self):
         """Tests at what context length, is long context retrieval more or less effective than RAG.
-        This test mimics a (real world) information retrieval application where the goal is to 
-        retrieve the correct document from a large document store.
-        This is done through the following process:
-            1. Starting with correct answer in context, keep adding documents (noise), shuffle and test long context retrieval. 
-                    Test RAG with the same document set at each iteration, except RAG will chunk over the set of documents.
-            2. Final iteration should have the entire document set in context.
-        Note that with this approach not all noise is created equal. Some documents may be longer, some docs may be more 
-        related to the test document. But since the test is to compare long context versus RAG, having the same set up is sufficient.
+        
+        Returns:
+            None
         """
         print("\n\n")
         test_start_time = time.time()
@@ -535,6 +623,9 @@ class SingleHopQATest:
 
     def test_hallucination(self):
         """Tests the performance of a model when the document is not present in the context.
+
+        Returns:
+            None
         """
         print("\n\n")
         test_start_time = time.time()
