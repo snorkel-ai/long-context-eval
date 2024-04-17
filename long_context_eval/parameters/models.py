@@ -15,10 +15,10 @@ MAX_CONTEXT_SIZE = {"gpt-3.5-turbo": 16385,
                     "gemini-pro": 32_760,
                     "gemini-1.5-pro-preview-0409": 500_000,
                     "claude-2.1": 150_000,  # Claude is truncated currently since we use GPT-4 tokenizer to count tokens
-                    "claude-3-opus-20240229": 150_000,
-                    "databricks/dbrx-instruct": 32_000,
-                    "mistralai/Mixtral-8x7B-Instruct-v0.1": 25_000,
-                    "microsoft/WizardLM-2-8x22B": 55_000,
+                    "claude-3-opus-20240229": 150_000, #truncated currently since we use GPT-4 tokenizer to count tokens
+                    "databricks/dbrx-instruct": 32_000, #truncated currently since we use GPT-4 tokenizer to count tokens
+                    "mistralai/Mixtral-8x7B-Instruct-v0.1": 25_000, #truncated currently since we use GPT-4 tokenizer to count tokens
+                    "microsoft/WizardLM-2-8x22B": 55_000, #truncated currently since we use GPT-4 tokenizer to count tokens
                     }
 
 
@@ -101,10 +101,10 @@ class OpenAIEmbeddingsModel(BaseModel):
                                 **model_kwargs)
 
 
-SUPPORTED_MODELS = {"gpt-3.5-turbo": OpenAIModel, #16k context
-                    "gpt-3.5-turbo-16k": OpenAIModel, # gpt-3.5-turbo-16k-0613, 16k context
-                    "gpt-4": OpenAIModel, # 8k context
-                    "gpt-4-0125-preview": OpenAIModel, #128k context
+SUPPORTED_MODELS = {"gpt-3.5-turbo": OpenAIModel,
+                    "gpt-3.5-turbo-16k": OpenAIModel,
+                    "gpt-4": OpenAIModel,
+                    "gpt-4-0125-preview": OpenAIModel,
                     "gpt-4-turbo-2024-04-09": OpenAIModel,
                     "gemini-pro": VertexAIModel,
                     "gemini-1.5-pro-preview-0409": VertexAIModel,
