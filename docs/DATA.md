@@ -1,8 +1,8 @@
-### Data and Task format requirements
+## Data and Task format requirements
 
-To run on your own data, add documents to a `data` folder. (As a default, we use `Unstructured` to extract text from documents. If you have PDF/HTML/etc. documents, install the necessary `Unstructured` libraries.)
+To run on your own data, add documents to a `data` folder. (As a default, we use `Unstructured` to extract text from documents. If you have PDF/HTML/etc. documents, install the necessary `Unstructured` libraries.).
 
-The QA task needs to be in the following format, and contain the keys `question`, `answer` and `answer_doc`.
+The QA task needs to be in the following format, and contain the keys `question`, `answer` and the filename of the doc in the `data` folder that contains the answer `answer_doc`.
 
 ```zsh
 {
@@ -22,3 +22,4 @@ The QA task needs to be in the following format, and contain the keys `question`
         "answer_doc": "How to Become a Professional Basketball Player Like Giannis Antetokounmpo.txt"
     },
 }
+```

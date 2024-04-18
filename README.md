@@ -1,21 +1,32 @@
-# Long Context Evaluation
+# Beyond the Needle in Haystack Test for Long Context Evaluation
 
-## Evaluating long context model capabilities on your own data
+## Overview
 
-This repository provides a framework to evaluate the long context capabilities of large language models (LLMs) on your own data and tasks. This is similar to the "needle in a haystack" test, except the haystack is your own set of documents, and the needles are a task (for example, a Question-Answer pair) that is created from the documents. This follows an automated task generation >> task completion >> task evaluation process, enabled by LLMs. We strongly recommend manually verifying both the inputs (tasks) and outputs (scores).
+This repository provides a Long-Context Eval Framework to evaluate the long context capabilities of large language models (LLMs) on your own data and tasks. This is similar to the "needle in a haystack" (NIAH) test, except the haystack is your own set of documents, and the needles are one or more answer (complete) documents based on which the question is posed.
 
+This is important, as current methods of long context evaluation are either synthetic and unrealistic (such as the NIAH test) or limited to academic datasets (such as [LongBench](https://arxiv.org/abs/2308.14508), [InfiniteBench](https://arxiv.org/abs/2402.13718) and others) which renders them less useful in real world settings. 
 
-### Tests currently supported
-
-- Single Document QA (a.k.a single needle in a haystack test)
-    - [X] Effect of position or document depth on retrieval accuracy
-    - [X] Effect of context size on long context versus RAG accuracy
-    - [ ] Extent to which the model hallucinates when the document is not present in context
-- Multi Document QA
-    - [ ] TBD
+The Long-Context Eval Framework overcomes these limitations by (a) creating a realistic test (model must provide a response based on information contained in one or more documents over a long context) and (b) enabling users to evaluate long context capabilities on their own data and tasks. This is done through an automated task generation >> task completion >> task evaluation pipeline, enabled by LLMs. We strongly recommend manually verifying both the inputs (tasks) and outputs (scores). A more detailed description of the methodology is available [here](./docs/METHODOLOGY.md).
 
 
-### Running the benchmark
+<p align="center">
+  <img src="images/framework.png" width=512px>
+</p>
+
+
+### Supporting tests and tasks
+
+- Effect of position on retrieval accuracy
+    - [X] Single Document QA task (a.k.a single needle in a haystack test)
+    - [ ] Multi Document QA task
+- Effect of context size on long-context versus RAG accuracy
+    - [X] Single Document QA task
+    - [ ] Multi Document QA task
+- Hallucination Index: Extent to which the model hallucinates when the document is not present in context
+    - [ ] Single Document QA task
+
+
+## Installation
 
 ```zsh
 python3 -m venv venv
@@ -28,10 +39,10 @@ cd long-context-eval
 pip install -r requirements.txt
 ```
 
-See instructions on the data and task formats [here](DATA.md)
+See instructions on data and task formats [here](./docs/DATA.md)
 
 
-We use the LangChain library for running models. Set up the appropriate API keys and environment variables to access/run models. See LangChain's documentation. Currently the following model providers are implemented: OpenAI, Anthropic, TogetherAI and VertexAI. A new model provider can be easily added in `models.py`. 
+We use LangChain for running models. Check LangChain's documentation in order to set up the appropriate API keys and environment variables to access/run models. Currently the following model providers are implemented: `OpenAI`, `Anthropic`, `TogetherAI` and `VertexAI`. See `models.py` for the list of models currently supported. A new model provider and/or model can be easily added in `models.py`.
 
 ```zsh
 export OPENAI_API_KEY=<YOUR_OPENAI_KEY>
@@ -51,13 +62,5 @@ For a full list of arguments, run
 python long_context_eval/run_benchmark.py --help
 ```
 
-
-### Test details
-
-The approach of testing long context is as follows:
-
-1. If no task json is provided for the QA task at `task_path`, QA pairs are first generated for each document at `data_path`. Currently only 1 QA pair is generated per document using GPT-4 and QA pairs are saved in `./data.json`.
-2. In order to test the model's context window capability, we fill the model's context window by selecting documents at random from `data_path` and corresponding QA pairs until the token limit is reached. We use `tiktoken` to count tokens, so this is approximate for models that do not use the same tokenization.
-3. For each document depth, the document containing the answer is positioned at the desired depth in the context, and an LLM response is generated. Currently we test at 0, 25, 50, 75, and 100% depths.
-4. For the long context versus RAG test, starting with just the test document, the size of the context window is increased by adding distractor documents. For RAG, Langchain's pipeline using Chroma DB (with default parameters) is used to retrieve documents and used as context to generate the response. Currently we test at 0, 25, 50, 75 and 100% of context size.
-5. Model responses are evaluated using LLM-as-a-judge (we recommend manually verifying the results, since auto-evals are known to have errors.)
+## Experiments and Results
+TBD
