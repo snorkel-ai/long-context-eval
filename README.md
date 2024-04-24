@@ -42,7 +42,7 @@ pip install -r requirements.txt
 See instructions on data and task formats [here](./docs/DATA.md)
 
 
-We use LangChain for running models. Check LangChain's documentation in order to set up the appropriate API keys and environment variables to access/run models. Currently the following model providers are implemented: `OpenAI`, `Anthropic`, `TogetherAI` and `VertexAI`. See `models.py` for the list of models currently supported. A new model provider and/or model can be easily added in `models.py`.
+We use LangChain for running models. Check LangChain's documentation in order to set up the appropriate API keys and environment variables to access/run models. Currently the following model providers are implemented: `OpenAI`, `Anthropic`, `TogetherAI` and `VertexAI`. See `models.py` for the list of models currently supported. A new model provider and/or model can be easily added in `models.py`. Please be aware of the costs associated with using the API's when running the tests.
 
 ```zsh
 export OPENAI_API_KEY=<YOUR_OPENAI_KEY>

@@ -22,7 +22,7 @@ Using language models to replace human intensive tasks such as dataset/benchmark
 While prompting and adding guardrails help to some extent, we find that the validation step cannot be circumvented, and a human-in-the-loop approach is best at ensuring good data at the input and output.
 
 ### 3. Task Completion
-Presently, the benchmark supports single document QA retrieval, and tests specifically for a) the effect of position on retrieval accuracy, b) the effect of context length (the level of noise) on retrieval performance and a comparison with RAG
+Presently, the benchmark supports single document QA retrieval, and tests specifically for (a) the effect of position on retrieval accuracy, (b) the effect of context size (the level of noise) on retrieval performance and a comparison with RAG
 
 #### 3a. Effect of position
 Liu et al. showed that models are better at retrieving information from the top or bottom of a long context, while performance greatly reduces when it is contained in the middle. They refer to this phenomenon as the “lost-in-the-middle” effect. In a similar vein, the popular “needle-in-a-haystack” test measures how position affects model performance by injecting a synthetic needle in a document set (they use Paul Graham’s essays).

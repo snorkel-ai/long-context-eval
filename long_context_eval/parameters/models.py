@@ -35,6 +35,10 @@ class OpenAIModel(BaseModel):
                  model_name: str = "gpt-3.5-turbo",
                  model_kwargs: dict = dict(temperature=0.8),
                  ):
+        """
+        :param model_name: The name of the model.
+        :param model_kwargs: Model configuration. Default is {temperature: 0.8}
+        """
         super().__init__(model_name)
         api_key = os.getenv('OPENAI_API_KEY')
         self.model = ChatOpenAI(model=model_name,
@@ -49,6 +53,10 @@ class VertexAIModel(BaseModel):
                  model_name: str = "gemini-pro",
                  model_kwargs: dict = dict(temperature=0.8),
                  ):
+        """
+        :param model_name: The name of the model.
+        :param model_kwargs: Model configuration. Default is {temperature: 0.8}
+        """
         super().__init__(model_name)
         self.model = VertexAI(model_name=model_name,
                               generationConfig=model_kwargs)
@@ -61,6 +69,10 @@ class AnthropicModel(BaseModel):
     def __init__(self, 
                  model_name: str,
                  model_kwargs: dict = dict(temperature=0.8),):
+        """
+        :param model_name: The name of the model.
+        :param model_kwargs: Model configuration. Default is {temperature: 0.8}
+        """
         super().__init__(model_name)
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if "temperature" in model_kwargs:
@@ -79,6 +91,10 @@ class TogetherAPIModel(BaseModel):
     def __init__(self, 
                  model_name: str,
                  model_kwargs: dict = dict(temperature=0.8)):
+        """
+        :param model_name: The name of the model.
+        :param model_kwargs: Model configuration. Default is {temperature: 0.8}
+        """
         super().__init__(model_name)
         api_key = os.getenv("TOGETHER_API_KEY")
         self.model = Together(model=model_name,
@@ -94,6 +110,10 @@ class OpenAIEmbeddingsModel(BaseModel):
                  model_name: str = "text-embedding-ada-002",
                  model_kwargs: dict = {},
                  ):
+        """
+        :param model_name: The name of the model.
+        :param model_kwargs: Model configuration. Default is {}
+        """
         super().__init__(model_name)
         api_key = os.getenv('OPENAI_API_KEY')
         self.model = OpenAIEmbeddings(model=model_name,
