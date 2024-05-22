@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository provides a Long-Context Eval Framework to evaluate the long context capabilities of large language models (LLMs) on your own data and tasks. This is an improvement to the "needle in a haystack" (NIAH) test, where the haystack is your own set of documents, and the needles are one or more answer (complete) documents based on which the question is posed.
+This repository provides a Snorkel Working Memory Test (SWiM) to evaluate the long context capabilities of large language models (LLMs) on your own data and tasks. This is an improvement to the "needle in a haystack" (NIAH) test, where the haystack is your own set of documents, and the needles are one or more answer (complete) documents based on which the question is posed.
 
 This is important, as current methods of long context evaluation are either synthetic and unrealistic (such as the NIAH test) or limited to academic datasets (such as [LongBench](https://arxiv.org/abs/2308.14508), [InfiniteBench](https://arxiv.org/abs/2402.13718) and others) which renders them less useful in real world settings. 
 
