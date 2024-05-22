@@ -15,6 +15,7 @@ class Settings:
     model_name: Optional[str] = "gpt-3.5-turbo"
     data_path: Optional[str] = "./data"
     task_path: Optional[str] = "./data.json"
+    results_folder_path: Optional[str] = "./results"
     model_kwargs: Optional[dict] = field(default_factory=lambda: dict(temperature=0.7))
     chunk_size: Optional[int] = 1000
     chunk_overlap: Optional[int] = 200
@@ -29,14 +30,16 @@ class Settings:
     task_prompt: Optional[str] = "single_doc_qa_prompt"
     eval_prompt: Optional[str] = "score_qa_prompt"
     seed: Optional[int] = None
-    tests: Optional[Literal['all', 'position', 'rag']] = 'all'
-
+    tests: Optional[Literal['all', 'position', 'rag', 'medoid', 'control_medoid']] = 'all'
+    document_depth_percents_list: Optional[list] = None
+    percent_ctxt_window_used: Optional[list] = None
+    num_runs_medoid_vote: Optional[int] = 1
+    document_depth_percents_medoid: Optional[int] = 25
 
 def main():
     cliargs = CLI(Settings, as_positional=False)
     args = cliargs.__dict__
     tests = args["tests"]
-    del args["tests"]
 
     # evaluate single hop doc QA
     lctest = SingleHopQATest(**args)
@@ -48,6 +51,10 @@ def main():
         lctest.test_position_accuracy()
     elif tests == "rag":
         lctest.test_long_context_length_versus_rag()
+    elif tests == "medoid":
+        lctest.test_medoid_voting()
+    elif tests == "control_medoid":
+        lctest.test_control_medoid_voting()
     else:
         exit(0)
     logging.basicConfig(filename=cliargs.log_path,level=logging.DEBUG)

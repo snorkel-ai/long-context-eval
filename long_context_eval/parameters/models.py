@@ -12,8 +12,10 @@ MAX_CONTEXT_SIZE = {"gpt-3.5-turbo": 16385,
                     "gpt-4": 8192,
                     "gpt-4-0125-preview": 128_000,
                     "gpt-4-turbo-2024-04-09": 128_000,
+                    "gpt-4o": 128_000,
                     "gemini-pro": 32_760,
-                    "gemini-1.5-pro-preview-0409": 500_000,
+                    "gemini-1.5-pro-preview-0409": 1_000_000,
+                    "gemini-1.5-flash-preview-0514": 1_000_000,
                     "claude-2.1": 150_000,  # Claude is truncated currently since we use GPT-4 tokenizer to count tokens
                     "claude-3-opus-20240229": 150_000, #truncated currently since we use GPT-4 tokenizer to count tokens
                     "databricks/dbrx-instruct": 32_000, #truncated currently since we use GPT-4 tokenizer to count tokens
@@ -46,7 +48,10 @@ class OpenAIModel(BaseModel):
                                 **model_kwargs)
         self.max_context_size = MAX_CONTEXT_SIZE[model_name]
         # To get the tokeniser corresponding to a specific model in the OpenAI API:
-        self.encoding = tiktoken.encoding_for_model(model_name)
+        try:
+            self.encoding = tiktoken.encoding_for_model(model_name)
+        except:
+            self.encoding = tiktoken.encoding_for_model("gpt-4")
 
 class VertexAIModel(BaseModel):
     def __init__(self,
@@ -126,8 +131,10 @@ SUPPORTED_MODELS = {"gpt-3.5-turbo": OpenAIModel,
                     "gpt-4": OpenAIModel,
                     "gpt-4-0125-preview": OpenAIModel,
                     "gpt-4-turbo-2024-04-09": OpenAIModel,
+                    "gpt-4o": OpenAIModel,
                     "gemini-pro": VertexAIModel,
                     "gemini-1.5-pro-preview-0409": VertexAIModel,
+                    "gemini-1.5-flash-preview-0514": VertexAIModel,
                     "claude-2.1": AnthropicModel,
                     "claude-3-opus-20240229": AnthropicModel,
                     "databricks/dbrx-instruct": TogetherAPIModel,
