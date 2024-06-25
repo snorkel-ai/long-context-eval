@@ -6,7 +6,9 @@ This repository provides a Snorkel Working Memory Test (SWiM) to evaluate the lo
 
 This is important, as current methods of long context evaluation are either synthetic and unrealistic (such as the NIAH test) or limited to academic datasets (such as [LongBench](https://arxiv.org/abs/2308.14508), [InfiniteBench](https://arxiv.org/abs/2402.13718) and others) which renders them less useful in real world settings. 
 
-SWiM overcomes these limitations by (a) creating a realistic test (model must provide a response based on information contained in one or more documents over a long context) and (b) enabling users to evaluate long context capabilities on their own data and tasks. This is done through an automated task generation >> task completion >> task evaluation pipeline, enabled by LLMs. We strongly recommend manually verifying both the inputs (tasks) and outputs (scores). A more detailed description of the methodology is available [here](./docs/METHODOLOGY.md).
+SWiM overcomes these limitations by (a) creating realistic tests (distractor QA or question answering based on information contained in one or more documents over a long context) and (b) enabling users to evaluate long context capabilities on their own data and tasks. 
+
+This is done through an LLM-driven task generation >> task validation >> task completion >> task evaluation pipeline. We strongly recommend manually verifying both the inputs (tasks) and outputs (scores). A more detailed description of the methodology is available [here](./docs/METHODOLOGY.md).
 
 
 <p align="center">
@@ -17,13 +19,13 @@ SWiM overcomes these limitations by (a) creating a realistic test (model must pr
 ### Supporting tests and tasks
 
 - Effect of position on retrieval accuracy
-    - [X] Single Document QA task (a.k.a single needle in a haystack test)
-    - [ ] Multi Document QA task
+    - [X] Single Document QA with distractors task (a.k.a single needle in a haystack test)
+    - [ ] Multi Document QA with distractors task
 - Effect of context size on long-context versus RAG accuracy
-    - [X] Single Document QA task
-    - [ ] Multi Document QA task
+    - [X] Single Document QA with distractors task
+    - [ ] Multi Document QA with distractors task
 - Hallucination Index: Extent to which the model hallucinates when the document is not present in context
-    - [ ] Single Document QA task
+    - [ ] Single Document QA with distractors task
 
 
 ## Installation
@@ -52,10 +54,11 @@ export OPENAI_API_KEY=<YOUR_OPENAI_KEY>
 python long_context_eval/run_benchmark.py --model_name gpt-3.5-turbo \
                                           --data_path ./data/cosmowikidataset \
                                           --task_path ./tasks/data_cosmowiki.json \
+                                          --eval_model_name gpt-4 \
                                           --experiment_tag QAtest \
                                           --tests position \
-                                          --seed 42
-
+                                          --seed 42 \
+                                          --document_depth_percents_list "[50]"
 ```
 
 For a full list of arguments, run
@@ -64,4 +67,14 @@ python long_context_eval/run_benchmark.py --help
 ```
 
 ## Experiments and Results
-TBD
+Here are some results using the SWiM test.
+
+
+<p align="center">
+  <img src="images/swim_versus_niah.png" width=512px>
+</p>
+
+
+<p align="center">
+  <img src="images/lcm_test.png" width=512px>
+</p>
