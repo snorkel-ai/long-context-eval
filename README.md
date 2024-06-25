@@ -10,6 +10,10 @@ SWiM overcomes these limitations by (a) creating realistic tests (distractor QA 
 
 This is done through an LLM-driven task generation >> task validation >> task completion >> task evaluation pipeline. We strongly recommend manually verifying both the inputs (tasks) and outputs (scores). A more detailed description of the methodology is available [here](./docs/METHODOLOGY.md).
 
+We also propose a novel approach to mitigate the "lost-in-the-middle" approach using medoid voting.
+
+Read the full blog here: https://snorkel.ai/long-context-models-in-the-enterprise-benchmarks-and-beyond/
+
 
 <p align="center">
   <img src="images/framework.png" width=512px>
