@@ -69,8 +69,8 @@ class SingleHopQATest:
                  eval_prompt: Optional[str] = "score_qa_prompt",
                  seed: Optional[int] = None,
                  tests: Optional[Literal['all', 'position', 'rag', 'medoid', 'control_medoid']] = 'all',
-                 document_depth_percents_list: Optional[list] = None, #applicable to the position test
-                 percent_ctxt_window_used: Optional[list] = None, #applicable to the RAG test
+                 document_depth_percents_list: Optional[list] = list((0, 25, 50, 75, 100)), #applicable to the position test
+                 percent_ctxt_window_used: Optional[list] = list((0, 25, 50, 75, 100)), #applicable to the RAG test
                  num_runs_medoid_vote: Optional[int] = 1,
                  document_depth_percents_medoid: Optional[int] = 25,
                  ):
@@ -79,11 +79,13 @@ class SingleHopQATest:
         self.task_path = task_path
         self.model_kwargs = model_kwargs
         self.results_folder_path = results_folder_path
+       
         # RAG parameters
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.search_kwargs = search_kwargs
         self.embedding_model_kwargs = embedding_model_kwargs
+        
         self.eval_model_name = eval_model_name
         self.eval_model_kwargs = eval_model_kwargs
         self.experiment_tag = experiment_tag
@@ -115,8 +117,8 @@ class SingleHopQATest:
         self.documents = {}
         self.qa_pairs = {}
 
-        self.document_depth_percents_list = document_depth_percents_list if document_depth_percents_list is not None else [0, 25, 50, 75, 100]
-        self.percent_ctxt_window_used = percent_ctxt_window_used if percent_ctxt_window_used is not None else [0, 25, 50, 75, 100]
+        self.document_depth_percents_list = document_depth_percents_list #if document_depth_percents_list is not None else [0, 25, 50, 75, 100]
+        self.percent_ctxt_window_used = percent_ctxt_window_used #if percent_ctxt_window_used is not None else [0, 25, 50, 75, 100]
 
         # create folder for results
         date_time = datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
@@ -167,7 +169,7 @@ class SingleHopQATest:
             self.loaded_documents = loader.load()
             print("# of loaded documents: ", len(self.loaded_documents))
 
-        # create QA pairs from documents
+        # get QA pairs
         try:
             self.qa_pairs = json.load(open(self.task_path))
             qa_pairs_ordered = OrderedDict(self.qa_pairs)
@@ -205,7 +207,7 @@ class SingleHopQATest:
         # with open(os.path.join(self.task_path), 'w') as f:
         #     f.write(json.dumps(self.qa_pairs))
 
-    def _get_or_truncate_context_window(self, documents):
+    def _get_or_truncate_context_window(self, documents, proxy_output_tokens=250):
         """
         Fills up the context window with the input documents 
         and truncates if necessary to fit within the maximum context size of the model.
@@ -221,7 +223,6 @@ class SingleHopQATest:
         print("total # of tokens", len(self.encoding.encode(long_context)))
 
         truncated_docs = []
-        proxy_output_tokens = 250
         if len(self.encoding.encode(long_context)) > self.model.max_context_size-proxy_output_tokens:
             for i, doc in enumerate(documents):
                 temp_doc_list = truncated_docs.copy()
@@ -671,6 +672,10 @@ class SingleHopQATest:
 
     def test_medoid_voting(self):
         """Tests for recall improvement with a medoid voting approach.
+
+            1. Generate responses multiple times, randomly permuting the documents in the context each time (as few as 3 works)
+            2. Embed responses using an embedding model
+            3. Take the medoid response, i.e. the response with the least avg. dissimilarity to all other responses.
         
         Returns:
             None
@@ -749,6 +754,8 @@ class SingleHopQATest:
 
     def test_control_medoid_voting(self):
         """Tests for recall improvement with a medoid voting approach.
+
+        As a control experiment for medoid voting, keeping the document depth fixed, run the task multiple times.
         
         Returns:
             None

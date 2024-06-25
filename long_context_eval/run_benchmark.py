@@ -31,8 +31,8 @@ class Settings:
     eval_prompt: Optional[str] = "score_qa_prompt"
     seed: Optional[int] = None
     tests: Optional[Literal['all', 'position', 'rag', 'medoid', 'control_medoid']] = 'all'
-    document_depth_percents_list: Optional[list] = None
-    percent_ctxt_window_used: Optional[list] = None
+    document_depth_percents_list: Optional[list] = field(default_factory=lambda: list((0, 25, 50, 75, 100)))
+    percent_ctxt_window_used: Optional[list] = field(default_factory=lambda: list((0, 25, 50, 75, 100)))
     num_runs_medoid_vote: Optional[int] = 1
     document_depth_percents_medoid: Optional[int] = 25
 
