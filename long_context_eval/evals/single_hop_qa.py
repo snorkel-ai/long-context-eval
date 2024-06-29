@@ -101,7 +101,7 @@ class SingleHopQATest:
         self.encoding = self.model.encoding
 
         # RAG embedding model
-        if tests in ["rag", "medoid", "control_medoid"]:
+        if tests in ["rag", "medoid", "control_medoid", "all"]:
             self.embedding_model_name = embedding_model_name
             self.embedding_model = models.SUPPORTED_MODELS[self.embedding_model_name](self.embedding_model_name,
                                                                                     self.embedding_model_kwargs)
@@ -173,6 +173,7 @@ class SingleHopQATest:
         try:
             self.qa_pairs = json.load(open(self.task_path))
             qa_pairs_ordered = OrderedDict(self.qa_pairs)
+            qa_pairs_ordered_filename = [qapair["answer_doc"] for k, qapair in qa_pairs_ordered.items()]
             print("# of QA pairs to test: ", len(self.qa_pairs))
         except Exception as e:
             print("No QA pairs for running experiments.")
@@ -181,7 +182,7 @@ class SingleHopQATest:
         # reorder docs according to QA pairs before truncation
         qa_files, remainder_files = [], []
         for doc in self.loaded_documents:
-            if os.path.split(doc.metadata["source"])[1] in qa_pairs_ordered:
+            if os.path.split(doc.metadata["source"])[1] in qa_pairs_ordered_filename:
                 qa_files.append(os.path.split(doc.metadata["source"])[1])
             else:
                 remainder_files.append(os.path.split(doc.metadata["source"])[1])
@@ -227,6 +228,10 @@ class SingleHopQATest:
             for i, doc in enumerate(documents):
                 temp_doc_list = truncated_docs.copy()
                 temp_doc_list.append(doc)
+                # print(doc.metadata["source"])
+                # print(len(self.encoding.encode(
+                #     "\n\n".join(
+                #         [doc.page_content for doc in temp_doc_list]))))
                 if len(self.encoding.encode(
                     "\n\n".join(
                         [doc.page_content for doc in temp_doc_list]))) > self.model.max_context_size-proxy_output_tokens:
