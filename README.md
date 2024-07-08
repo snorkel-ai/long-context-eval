@@ -1,5 +1,11 @@
 # Snorkel Working Memory Test (SWiM)
 
+This is the repo for our paper "Evaluating Language Model Context Windows: A "Working Memory" Test and Inference-time Correction" by Amanda Dsouza, Christopher Glaze, Changho Shin, Frederic Sala.
+
+arXiv: https://arxiv.org/abs/2407.03651
+
+blog post: https://snorkel.ai/long-context-models-in-the-enterprise-benchmarks-and-beyond/
+
 ## Overview
 
 This repository provides a Snorkel Working Memory Test (SWiM) to evaluate the long context capabilities of large language models (LLMs) on your own data and tasks. This is an improvement to the "needle in a haystack" (NIAH) test, where the haystack is your own set of documents, and the needles are one or more answer (complete) documents based on which the question is posed.
@@ -8,11 +14,9 @@ This is important, as current methods of long context evaluation are either synt
 
 SWiM overcomes these limitations by (a) creating realistic tests (distractor QA or question answering based on information contained in one or more documents over a long context) and (b) enabling users to evaluate long context capabilities on their own data and tasks. 
 
-This is done through an LLM-driven task generation >> task validation >> task completion >> task evaluation pipeline. We strongly recommend manually verifying both the inputs (tasks) and outputs (scores). A more detailed description of the methodology is available [here](./docs/METHODOLOGY.md).
+This is done through an LLM-driven task generation >> task validation >> task completion >> task evaluation pipeline. We strongly recommend manually verifying both the inputs (tasks) and outputs (scores). A more detailed description of the methodology is available in our paper.
 
 We also propose a novel approach to mitigate the "lost-in-the-middle" approach using medoid voting.
-
-Read the full blog here: https://snorkel.ai/long-context-models-in-the-enterprise-benchmarks-and-beyond/
 
 
 <p align="center">
@@ -71,7 +75,7 @@ python long_context_eval/run_benchmark.py --help
 ```
 
 ## Experiments and Results
-Here are some results using the SWiM test.
+Here are some results using the SWiM test. The full set of results and analysis is described in our paper.
 
 
 <p align="center">
