@@ -86,3 +86,17 @@ Here are some results using the SWiM test. The full set of results and analysis 
 <p align="center">
   <img src="images/lcm_test.png" width=512px>
 </p>
+
+# 
+If you find this work useful to your research, please consider citing our paper
+```
+@misc{dsouza2024evaluatinglanguagemodelcontext,
+      title={Evaluating Language Model Context Windows: A "Working Memory" Test and Inference-time Correction}, 
+      author={Amanda Dsouza and Christopher Glaze and Changho Shin and Frederic Sala},
+      year={2024},
+      eprint={2407.03651},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2407.03651}, 
+}
+```
